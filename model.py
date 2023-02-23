@@ -3,62 +3,105 @@ import numpy as np
 from data_utils import cplex_to_df, create_dicts, plot_schedule, plot_mode
 
 import pickle
-import googlemaps
 import json
 
 from docplex.mp.model import Model
 from docplex.mp.conflict_refiner import ConflictRefiner
 
-def optimize_schedule(df = None, travel_times = None, distances = None, n_iter = 1, plot_every = 10, mtmc = True, parameters = None, var = 1, deterministic = False, plot_mode = False):
+def optimize_schedule(df = None, travel_times = None, distances = None, n_iter = 1, plot_every = 10, mtmc = True, parameters = None, preferences = None, var = 1, deterministic = False, plot_mode = False, verbose = False):
     '''
     Optimize schedule using CPLEX solver, given timing preferences and travel time matrix.
     Can produce a graphical output if specified (by argument plot_every)
     travel_times = used to be 2d nest Orig X Dest, changed to 3d nest Mode X Orig X Dest --> need to add mode in dictionary
     '''
 
-    period = 24
-    modes = ["driving", "bicycling", "transit", "walking"]
+    PERIOD = 24
+    MODES = ["driving", "bicycling", "transit", "walking"]
+
+    FLEXIBILITY_LOOKUP = {'education': 'NF',
+     'work': 'NF',
+     'errands_services': 'F',
+     'escort': 'NF',
+     'leisure': 'F',
+     'shopping': 'F',
+     'home': 'F',
+     'dawn': 'F',
+     'dusk': 'F',
+     'business_trip': 'NF'
+     }
+
+
+    activity_specific = False
+
+#---------------------------------- INITIALIZE PARAMETERS ---------------------------------------#
+
     if parameters is None:
-        p_st_e = {'F': 0,'M': -0.61,'R': -2.4}#penalties for early arrival
-        p_st_l = {'F': 0,'M': -2.4,'R': -9.6}  #penalties for late arrival
-        p_dur_s = {'F': -0.61,'M': -2.4,'R': -9.6}#penalties for short duration
-        p_dur_l = {'F': -0.61,'M': -2.4,'R': -9.6}#penalties for long duration
-        p_t = -1 #penalty for travel time
+        p_st_e = {'F': 0,'M': -0.61,'NF': -2.4}#penalties for early arrival
+        p_st_l = {'F': 0,'M': -2.4,'NF': -9.6}  #penalties for late arrival
+        p_dur_s = {'F': -0.61,'M': -2.4,'NF': -9.6}#penalties for short duration
+        p_dur_l = {'F': -0.61,'M': -2.4,'NF': -9.6}#penalties for long duration
 
-        #values of time (Weis et al, 2021 - table 6)
-        vot = {"driving": 13.2,
-        "bicycling": 9.9,
-        "transit": 12.3,
-        "walking": 6
-        }
+        constants = {"home": 0,
+        "dawn": 0,
+        "dusk": 0,
+        "work" : 0,
+        "education": 0,
+        "shopping": 0,
+        "errands_services": 0,
+        "business_trip": 0,
+        "leisure": 0,
+        "escort": 0}
 
-        #values of leisure and work (Schmid et al 2019):
-        vot_act ={"home": 25.2,
-            "work" : -20.6,
-            "education": -20.6,
-            "shopping": 25.2,
-            "errands_services": 25.2,
-            "business_trip": -20.6,
-            "leisure": 25.2,
-            "escort": 25.2
 
-        }
 
-        #penalties travel cost
-        p_t_cost = {mode : p_t/vot[mode] for mode in modes}
+    else:
+        p_st_e = parameters['p_st_e']
+        p_st_l =  parameters['p_st_l']
+        p_dur_s =  parameters['p_dur_s']
+        p_dur_l =  parameters['p_dur_l']
 
-        #penalty activity cost
-        p_act_cost = - 2
+        constants = parameters['constants']
 
-        #travel costs (BfS 2018)
-        costs_travel = {"driving": 0.37,
+        if 'work' in p_st_e.keys():
+            activity_specific = True
+
+    p_t = -1 #penalty for travel time
+
+
+    #values of time (Weis et al, 2021 - table 6)
+    vot = {"driving": 13.2,
+    "bicycling": 9.9,
+    "transit": 12.3,
+    "walking": 6
+    }
+
+    #values of leisure and work (Schmid et al 2019):
+    vot_act ={"home": 25.2,
+    "work" : -20.6,
+    "education": -20.6,
+    "shopping": 25.2,
+    "errands_services": 25.2,
+    "business_trip": -20.6,
+    "leisure": 25.2,
+    "escort": 25.2}
+
+    #penalties travel cost
+    #p_t_cost = {mode : p_t/vot[mode] for mode in modes}
+    p_t_cost = {mode: 0 for mode in MODES}
+
+    #penalty activity cost
+    #p_act_cost = - 2
+    p_act_cost = 0
+
+    #travel costs (BfS 2018)
+    costs_travel = {"driving": 0.37,
         "bicycling": 0,
         "transit": 0.03,
         "walking": 0
         }
 
-        #activity costs (derived from Schmid et al 2021, from EVE dataset with household budgets)
-        costs_activity = {1: 0, #home
+    #activity costs (derived from Schmid et al 2021, from EVE dataset with household budgets)
+    costs_activity = {1: 0, #home
             2 : 0, #work #need to change for wage
             3: 0, #education,
             4: 16.8, #shopping
@@ -67,32 +110,11 @@ def optimize_schedule(df = None, travel_times = None, distances = None, n_iter =
             8: 12, #leisure,
             9: 0} #escort
 
-        error_w = np.random.normal(scale = var, size = 2)
-        error_x = np.random.normal(scale = var, size = 4) #discretization start time: 4h time blocks
-        error_d = np.random.normal(scale = var, size = 6)
-        error_z = np.random.normal(scale = var, size = 2)
+    error_w = np.random.normal(scale = var, size = 2)
+    error_x = np.random.normal(scale = var, size = 4) #discretization start time: 4h time blocks
+    error_d = np.random.normal(scale = var, size = 6)
+    error_z = np.random.normal(scale = var, size = 2)
 
-        preferences = None
-    else:
-        p_st_e = {'F': parameters['p_st_e_f'],'M':parameters['p_st_e_m'],'R': parameters['p_st_e_r']}
-        p_st_l = {'F': parameters['p_st_l_f'],'M': parameters['p_st_l_m'],'R':parameters['p_st_l_r']}
-        p_dur_s = {'F': parameters['p_dur_s_f'],'M': parameters['p_dur_s_m'],'R': parameters['p_dur_s_r']}
-        p_dur_l = {'F': parameters['p_dur_l_f'],'M': parameters['p_dur_l_m'],'R': parameters['p_dur_l_r']}
-
-        p_t = parameters['p_t']
-
-        error_w = parameters['error_w']
-        error_x = parameters['error_x']
-        error_d = parameters['error_d']
-        error_z = parameters['error_z']
-
-        pref_st = {1: parameters['d_st_h'],2: parameters['d_st_w'],3: parameters['d_st_edu'],4: parameters['d_st_s'],
-        5: parameters['d_st_er'],6: parameters['d_st_b'],8: parameters['d_st_l'], 9: parameters['d_st_es']}
-
-        pref_dur = {1: parameters['d_dur_h'],2: parameters['d_dur_w'],3: parameters['d_dur_edu'],4: parameters['d_dur_s'],
-        5: parameters['d_dur_er'],6: parameters['d_dur_b'],8: parameters['d_dur_l'], 9: parameters['d_dur_es']}
-
-        preferences = [pref_st, pref_dur]
 
     if deterministic:
         EV_error = 0
@@ -101,8 +123,16 @@ def optimize_schedule(df = None, travel_times = None, distances = None, n_iter =
 
 
     #dictionaries containing data
-    keys, location, feasible_start, feasible_end, des_start, des_duration, flex_early, flex_late, flex_short, flex_long, group, mode, act_id = create_dicts(df, preferences)
-    #print(keys, des_start, des_duration, flex_early, flex_late, flex_short, flex_long, mode)
+    keys, location, feasible_start, feasible_end, des_start, des_duration, group, mode, act_id, act_type = create_dicts(df, preferences)
+
+    #define activity specific or generic utility function
+    def utility_index(activity):
+        if activity_specific:
+            return act_type[activity]
+        return FLEXIBILITY_LOOKUP[act_type[activity]]
+
+
+#------------------------------------------- INITIALIZE MODEL --------------------------------------------#
 
     m = Model()
     m.parameters.optimalitytarget = 3 #global optimum for non-convex models
@@ -114,22 +144,16 @@ def optimize_schedule(df = None, travel_times = None, distances = None, n_iter =
     w = m.binary_var_dict(keys, name = 'w') #indicator of  activity choice
     tt = m.continuous_var_dict(keys, lb = 0, name = 'tt') #travel time
     tc = m.continuous_var_dict(keys, lb = 0, name = 'tc') #travel cost
-    #md = m.binary_var_matrix(keys, modes, name = 'md') #mode of transportation (availability)
+
     md_car = m.binary_var_dict(keys, name = 'md') #mode of transportation (availability)
     #z_md = m.binary_var_cube(keys, keys, modes, name = 'z_md') #dummy variable to linearize product of z and md
 
-
-    #piecewise error variables
-    #error_w = m.piecewise(0, [(k,error_participation[k]) for k in [0,1]], 0)
-    #error_z = m.piecewise(0, [(k,error_succession[k]) for k in [0,1]], 0)
-    #error_x = m.piecewise(0, [(a, error_start[b]) for a,b in zip(np.arange(0, 24, 6), np.arange(4))], 0)
-    #error_d = m.piecewise(0, [(a, error_duration[b]) for a,b in zip([0, 1, 3, 8, 12, 16], np.arange(6))], error_duration[-1])
     error_w = m.piecewise(0, [(k,error_w[k]) for k in [0,1]], 0)
     error_z = m.piecewise(0, [(k,error_z[k]) for k in [0,1]], 0)
     error_x = m.piecewise(0, [(a, error_x[b]) for a,b in zip(np.arange(0, 24, 6), np.arange(4))], 0)
     error_d = m.piecewise(0, [(a, error_d[b]) for a,b in zip([0, 1, 3, 8, 12, 16], np.arange(6))], error_d[-1])
 
-    #constraints
+    #------------------------------------------------ CONSTRAINTS ---------------------------------------#
 
 
     for a in keys:
@@ -137,8 +161,8 @@ def optimize_schedule(df = None, travel_times = None, distances = None, n_iter =
         ct_sequence_dawn = m.add_constraint(z[a,'dawn'] == 0 )
         ct_sequence_dusk = m.add_constraint(z['dusk',a] == 0 )
         ct_sameact = m.add_constraint(z[a,a] == 0)
-        ct_times_inf = m.add_constraints(x[a] + d[a] + tt[a] - x[b] >= (z[a,b]-1)*period for b in keys)
-        ct_times_sup = m.add_constraints(x[a] + d[a] + tt[a] - x[b] <= (1-z[a,b])*period for b in keys)
+        ct_times_inf = m.add_constraints(x[a] + d[a] + tt[a] - x[b] >= (z[a,b]-1)*PERIOD for b in keys)
+        ct_times_sup = m.add_constraints(x[a] + d[a] + tt[a] - x[b] <= (1-z[a,b])*PERIOD for b in keys)
         ct_traveltime = m.add_constraint(tt[a] == m.sum(z[a,b]*travel_times[mode[a]][location[a]][location[b]] for b in keys))
         ct_travelcost = m.add_constraint(tc[a] == m.sum(z[a,b]*costs_travel[mode[a]]*distances[location[a]][location[b]] for b in keys))
 
@@ -154,11 +178,10 @@ def optimize_schedule(df = None, travel_times = None, distances = None, n_iter =
         ct_car_consist_pos = m.add_constraints(md_car[b] >=  md_car[a] + z[a,b] - 1 for b in keys)
 
         ct_nullduration = m.add_constraint(w[a] <= d[a])
-        ct_noactivity = m.add_constraint(d[a] <= w[a]*period)
+        ct_noactivity = m.add_constraint(d[a] <= w[a]*PERIOD)
         ct_tw_start = m.add_constraint(x[a] >= feasible_start[a])
         ct_tw_end = m.add_constraint(x[a] + d[a] <= feasible_end[a])
 
-        #if not mtmc: #no duplicates in MTMC !
         ct_duplicates = m.add_constraint(m.sum(w[b] for b in keys if group[b] == group[a])<=1)
 
         if a != 'dawn':
@@ -166,19 +189,21 @@ def optimize_schedule(df = None, travel_times = None, distances = None, n_iter =
         if a != 'dusk':
             ct_successor = m.add_constraint(m.sum(z[a,b] for b in keys if b !=a) == w[a] )
 
-    ct_period = m.add_constraint(m.sum(d[a] + tt[a] for a in keys)==period)
+    ct_period = m.add_constraint(m.sum(d[a] + tt[a] for a in keys)==PERIOD)
     ct_startdawn = m.add_constraint(x['dawn'] == 0)
-    ct_enddusk = m.add_constraint(x['dusk']+ d['dusk'] == period)
+    ct_enddusk = m.add_constraint(x['dusk']+ d['dusk'] == PERIOD)
 
-    #objective function
-    m.maximize(m.sum(w[a] * (
+    #----------------------------------- UTILITY FUNCTION ---------------------------------------------#
+    m.maximize(
+
+    m.sum(w[a] * (
     #penalties start time
-    (p_st_e[flex_early[a]]) * m.max(des_start[a]-x[a], 0)
-    +(p_st_l[flex_late[a]]) * m.max(x[a]-des_start[a], 0)
+    (p_st_e[utility_index(a)]) * m.max(des_start[act_type[a]]-x[a], 0)
+    +(p_st_l[utility_index(a)]) * m.max(x[a]-des_start[act_type[a]], 0)
 
     #penalties duration
-    +(p_dur_s[flex_short[a]]) * m.max(des_duration[a]-d[a], 0)
-    +(p_dur_l[flex_long[a]]) * m.max(d[a] - des_duration[a], 0)
+    +(p_dur_s[utility_index(a)]) * m.max(des_duration[act_type[a]]-d[a], 0)
+    +(p_dur_l[utility_index(a)]) * m.max(d[a] - des_duration[act_type[a]], 0)
 
     #penalties travel (time and cost)
     +(p_t) * tt[a]
@@ -191,13 +216,14 @@ def optimize_schedule(df = None, travel_times = None, distances = None, n_iter =
     + error_w(w[a])
     + error_x(x[a])
     + error_d(d[a])
-    + m.sum(error_z(z[a,b]) for b in keys) for a in keys)+ EV_error)
-    #+ error_w*w[a]
-    #+ error_x*x[a]
-    #+ error_d*d[a]
-    #+ m.sum(error_z*z[a,b] for b in keys) for a in keys)+ EV_error)
+    + m.sum(error_z(z[a,b]) for b in keys) + constants[act_type[a]] for a in keys) + EV_error
+
+    )
+
 
     solution = m.solve()
+
+#--------------------------------------------- OUTPUT ---------------------------------------------------#
     figure = None
     solution_df = None
     mode_figure = None

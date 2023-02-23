@@ -1,7 +1,0 @@
-act_id,act_label,label,start_time,end_time,duration,feasible_start,feasible_end,location,loc_id,categories,flex_early,flex_late,flex_short,flex_long
-1.0,home,dawn,0.0,9.5,9.5,0,24,"(46.5356, 6.60019)",1,discret,F,M,F,F
-2.0,work,work1,9.533333333333333,13.5,3.966666666666667,5,23,"(46.5355, 6.59967)",0,mandat,R,R,R,M
-1.0,home,home,13.533333333333333,15.166666666666666,1.6333333333333329,0,24,"(46.5356, 6.60019)",1,discret,F,M,F,F
-2.0,work,work2,15.2,20.0,4.800000000000001,5,23,"(46.5355, 6.59967)",0,mandat,R,R,R,M
-8.0,leisure,leisure,20.466666666666665,20.466666666666665,0.0,0,24,"(46.5355, 6.59967)",0,discret,F,M,F,F
-1.0,home,dusk,20.5,24.0,3.5,0,24,"(46.5356, 6.60019)",1,discret,F,M,F,F

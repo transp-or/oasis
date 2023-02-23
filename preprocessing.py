@@ -1,61 +1,82 @@
 import pandas as pd
 import numpy as np
-from data_utils import *
 
 from cryptography.fernet import Fernet
 from sqlalchemy import create_engine
 
-def preprocess_data(source = 'MTMC', travel = False):
-    if source == 'MTMC':
-        key = open('../../SBB/private_key.bin','rb').read()
-        pwd = b'gAAAAABd7husCFooBORU38BF92nvbLhZAFcBRBM1ia1HXZ6kZhjaLfcfvfBFev9F3xw9T1Vmi5qMwJMzOhdoynDQdKivGQKSgA=='
+def preprocess_data(source = 'database', key_loc = None, pwd_string = None, user = None, csv_loc = None, travel = False):
 
-        engine = create_engine(f'postgresql://pougala:{Fernet(key).decrypt(pwd).decode()}@transporvm1/mtmc')
+    '''
+    source = can b
+    key_loc = absolute or relative location of Fernet key to access the database
+    pwd_string = Fernet password to access the database, see: https://cryptography.io/en/latest/fernet/ to generate key and pwd
+    user = username for the database
+
+
+    Code can be modified with direct access to the database simply by replacing the Fernet part with the actual password and commenting lines 22/23.
+
+
+    '''
+    if source == 'database':
+        key = open(key_loc,'rb').read()
+        pwd = pwd_string
+
+        engine = create_engine(f'postgresql://{user}:{Fernet(key).decrypt(pwd).decode()}@transporvm1/mtmc')
         query = ("""SELECT "HHNR", "ETNR", f51300, f52900, rdist, ldist, e_dauer, f51100time, f51400time,
         "S_X", "S_Y", "Z_X", "Z_Y", f51700 FROM steps""")
 
         df = pd.read_sql_query(query, engine)
+    elif source == 'csv':
+        if not csv_loc:
+            print('Please provide a csv data file.')
+            return None
 
-        #convert HHNR to int
-        df.HHNR = df.HHNR.astype('int64')
+        df = pd.read_csv(csv_loc)
+        engine = None
+    else:
+        print('Please provide a valid data file (CSV or SQL database).')
+        return None
 
-        #convert time stamps to hours
-        stt= (df.f51100time).astype(str).str.split(':')
-        i, j, k = stt.str[0], stt.str[1], stt.str[2]
-        df['start_time_linear'] = i.astype(int) + (j.astype(float)/60) + (k.astype(float)/3600)
+    #convert HHNR to int
+    df.HHNR = df.HHNR.astype('int64')
 
-        ent= (df.f51400time).astype(str).str.split(':')
-        i, j, k = ent.str[0], ent.str[1], ent.str[2]
-        df['end_time_linear'] = i.astype(int) + (j.astype(float)/60) + (k.astype(float)/3600)
+    #convert time stamps to hours
+    stt= (df.f51100time).astype(str).str.split(':')
+    i, j, k = stt.str[0], stt.str[1], stt.str[2]
+    df['start_time_linear'] = i.astype(int) + (j.astype(float)/60) + (k.astype(float)/3600)
 
-        #remove hh who don't finish at home
-        hh_list = df.HHNR.unique()
-        hh_to_del = []
+    ent= (df.f51400time).astype(str).str.split(':')
+    i, j, k = ent.str[0], ent.str[1], ent.str[2]
+    df['end_time_linear'] = i.astype(int) + (j.astype(float)/60) + (k.astype(float)/3600)
 
-        for h in hh_list:
-            df_hh = df[df.HHNR == h]
-            if df_hh.f52900.iloc[-1] != 11:
-                hh_to_del.append(h)
+    #remove hh who don't finish at home
+    hh_list = df.HHNR.unique()
+    hh_to_del = []
 
-        df = df[~df.HHNR.isin(hh_to_del)]
-        df.reset_index(drop=True, inplace=True)
+    for h in hh_list:
+        df_hh = df[df.HHNR == h]
+        if df_hh.f52900.iloc[-1] != 11:
+            hh_to_del.append(h)
 
-        purp_to_del = [1, 13]
-        df = df[~df.f52900.isin(purp_to_del)]
+    df = df[~df.HHNR.isin(hh_to_del)]
+    df.reset_index(drop=True, inplace=True)
 
-        #change activity labels
-        id_to_rep = {
-        11: 1, #home
-        7: 6, #business trips + activity
-        10: 9, #both escort activities
-        }
-        df.f52900.replace(to_replace = id_to_rep, inplace = True)
+    purp_to_del = [1, 13]
+    df = df[~df.f52900.isin(purp_to_del)]
 
-        #remove NaN values
-        df = df[df.f52900 >=0]
+    #change activity labels
+    id_to_rep = {
+    11: 1, #home
+    7: 6, #business trips + activity
+    10: 9, #both escort activities
+    }
+    df.f52900.replace(to_replace = id_to_rep, inplace = True)
 
-        #origin and destinations
-        df.f52900.replace(to_replace = id_to_rep, inplace = True)
+    #remove NaN values
+    df = df[df.f52900 >=0]
+
+    #origin and destinations
+    df.f52900.replace(to_replace = id_to_rep, inplace = True)
 
     return df, engine
 
@@ -151,7 +172,7 @@ def extract_sched_mtmc(df, hh = None, travel = False):
 
     return schedule
 
-def get_geosample(id, type = 'city', engine = None):
+def get_geosample(id, type = 'city', user = None, key_loc = None, pwd_string = None, engine = None):
     '''
     Get geographical sample from dataset
     id: ID of the geographic entity
@@ -161,9 +182,9 @@ def get_geosample(id, type = 'city', engine = None):
     df_sampled = None
 
     if engine is None:
-        key = open('../../SBB/private_key.bin','rb').read()
-        pwd = b'gAAAAABd7husCFooBORU38BF92nvbLhZAFcBRBM1ia1HXZ6kZhjaLfcfvfBFev9F3xw9T1Vmi5qMwJMzOhdoynDQdKivGQKSgA=='
-        engine = create_engine(f'postgresql://pougala:{Fernet(key).decrypt(pwd).decode()}@transporvm1/mtmc')
+        key = open(key_loc,'rb').read()
+        pwd = pwd_string
+        engine = create_engine(f'postgresql://{user}:{Fernet(key).decrypt(pwd).decode()}@transporvm1/mtmc')
 
     query = ("""SELECT "HHNR", "W_AGGLO2000", "W_KANTON", "W_REGION" FROM hh""")
     df_c = pd.read_sql_query(query, engine)
@@ -182,19 +203,21 @@ def get_geosample(id, type = 'city', engine = None):
     return hh_sampled, df_sampled
 
 
-def get_socioeco_sample(col, id, city = 5586, engine = None):
+def get_socioeco_sample(col, id, city = 5586, user = None, key_loc = None, pwd_string = None, engine = None):
     '''
     Get socio-economic sample from the dataset (MTMC)
     col: column in the dataset
     id: value from col
+    city: city code in MTMC. 5586 = Lausanne
     engine: access to the SQL database
     '''
     df_sampled = None
 
     if engine is None:
-        key = open('../../SBB/private_key.bin','rb').read()
-        pwd = b'gAAAAABd7husCFooBORU38BF92nvbLhZAFcBRBM1ia1HXZ6kZhjaLfcfvfBFev9F3xw9T1Vmi5qMwJMzOhdoynDQdKivGQKSgA=='
-        engine = create_engine(f'postgresql://pougala:{Fernet(key).decrypt(pwd).decode()}@transporvm1/mtmc')
+        key = open(key_loc,'rb').read()
+        pwd = pwd_string
+        engine = create_engine(f'postgresql://{user}:{Fernet(key).decrypt(pwd).decode()}@transporvm1/mtmc')
+
 
     query = (f"""SELECT hh."HHNR", hh."W_AGGLO2000", target_indiv.\"{col}\" FROM hh
     LEFT JOIN target_indiv ON target_indiv."HHNR" = hh."HHNR" """)

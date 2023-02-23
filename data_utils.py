@@ -13,9 +13,7 @@ import re
 
 import googlemaps
 import json
-
-
-
+import joblib
 
 def cplex_to_df(w, x, d, tt, car_avail, mode, keys, act_id, location, minutes = False):
     '''
@@ -119,33 +117,28 @@ def create_dicts(df, preferences = None, minutes = False):
     if minutes:
         df['feasible_start'] = (df.feasible_start.round())*60
         df['feasible_end'] = (df.feasible_end.round())*60
-        df['start_time'] = (df.start_time.round())*60
-        df['duration'] = (df.start_time.round())*60
+
+        if 'start_time' in df.columns:
+            df['start_time'] = (df.start_time.round())*60
+        if 'duration' in df.columns:
+            df['duration'] = (df.start_time.round())*60
 
     location = df.set_index('label')['location'].to_dict()
-    #location = df.set_index('label')['loc_id'].to_dict()
     feas_start = df.set_index('label')['feasible_start'].to_dict()
     feas_end = df.set_index('label')['feasible_end'].to_dict()
 
-    flex_early = df.set_index('label')['flex_early'].to_dict()
-    flex_late = df.set_index('label')['flex_late'].to_dict()
-    flex_short = df.set_index('label')['flex_short'].to_dict()
-    flex_long = df.set_index('label')['flex_long'].to_dict()
 
-    if preferences is None:
-        des_start = df.set_index('label')['start_time'].to_dict()
-        des_duration = df.set_index('label')['duration'].to_dict()
+    if preferences:
+        des_start, des_duration = preferences[0], preferences[1]
     else:
-        st, dur = preferences[0], preferences[1]
-        list_labels = df.label.values.tolist()
+        try:
+            #if there are multiple activities of the same type it will only take the last one...
+            #so only use this as last resort ;)
+            des_start = df.set_index('act_label')['start_time'].to_dict()
+            des_duration = df.set_index('act_label')['duration'].to_dict()
+        except: #will most likely be a KeyError if it can't find start time and duration in the columns
+            print("Please provide a valid input for preferences (desired times/duration)")
 
-        des_start = {}
-        des_duration = {}
-
-        for l in list_labels:
-            ids = df[(df.label == l)].act_id.values
-            des_start[l] = st[ids[0]]
-            des_duration[l] = dur[ids[0]]
 
     if 'group' in df.columns:
         group = df.set_index('label')['group'].to_dict()
@@ -159,10 +152,33 @@ def create_dicts(df, preferences = None, minutes = False):
 
 
     act_id = df.set_index('label')['act_id'].to_dict()
+    act_type = df.set_index('label')['act_label'].to_dict()
 
     keys= df.label.values.tolist()
 
-    return keys, location, feas_start, feas_end, des_start, des_duration, flex_early, flex_late, flex_short, flex_long, group, mode, act_id
+    return keys, location, feas_start, feas_end, des_start, des_duration, group, mode, act_id, act_type
+
+
+def create_params(biogeme_pickle, desired_times = None):
+
+    parameters = {}
+
+    results = res.bioResults(pickleFile = biogeme_pickle)
+    estim_param = results.getBetaValues()
+    param_names = list(estim_param.keys())
+
+    parameters['p_st_e'] = {i.split(":")[0]: estim_param[i] for i in param_names if "early" in i}
+    parameters['p_st_l'] = {i.split(":")[0]: estim_param[i] for i in param_names if "late" in i}
+    parameters['p_dur_s'] = {i.split(":")[0]: estim_param[i] for i in param_names if "short" in i}
+    parameters['p_dur_l'] = {i.split(":")[0]: estim_param[i] for i in param_names if "long" in i}
+    parameters['constants'] = {i.split(":")[0]: estim_param[i] for i in param_names if "constant" in i}
+
+    if desired_times:
+        parameters['des_st'] = {i: desired_times[i]['desired_start_time'] for i in list(desired_times.keys())}
+        parameters['des_dur'] = {i: desired_times[i]['desired_duration'] for i in list(desired_times.keys())}
+
+    return parameters
+
 
 def read_schedule(hh, sched_folder = "MTMC_schedules/", tt_folder = "MTMC_ttmatrices/", mode = "driving", compute = False, verbose = False):
     fname_csv = str(hh)
@@ -174,8 +190,6 @@ def read_schedule(hh, sched_folder = "MTMC_schedules/", tt_folder = "MTMC_ttmatr
     else:
         tt_path = os.path.join(tt_folder, f'{hh}_{mode}.pickle')
 
-    #sched_name = re.findall(sched_path, str(sched_path))[0]
-    #tt_name =re.findall(tt_path, str(tt_path))[0]
 
     try:
         sched = pd.read_csv(sched_path)
@@ -202,17 +216,6 @@ def read_schedule(hh, sched_folder = "MTMC_schedules/", tt_folder = "MTMC_ttmatr
 
     return sched, travel_times
 
-def get_param_variables(param_dict):
-
-    p_st_e_f, p_st_l_f, p_dur_s_f, p_dur_l_f, p_st_e_m, p_st_l_m, p_dur_s_m, p_dur_l_m, p_st_e_r, p_st_l_r, p_dur_s_r, p_dur_l_r = param_dict['p_st_e_f'], param_dict['p_st_l_f'], param_dict['p_dur_s_f'], param_dict['p_dur_l_f'], param_dict['p_st_e_m'], param_dict['p_st_l_m'], param_dict['p_dur_s_m'], param_dict['p_dur_l_m'], param_dict['p_st_e_r'], param_dict['p_st_l_r'], param_dict['p_dur_s_r'], param_dict['p_dur_l_r']
-    p_t, error_w, error_z, error_x, error_d = param_dict['p_t'], param_dict['error_w'], param_dict['error_z'], param_dict['error_x'], param_dict['error_d']
-
-    d_st_h, d_st_w, d_st_edu, d_st_s, d_st_er, d_st_b, d_st_l, d_st_es = param_dict['d_st_h'], param_dict['d_st_w'], param_dict['d_st_edu'], param_dict['d_st_s'], param_dict['d_st_er'], param_dict['d_st_b'], param_dict['d_st_l'], param_dict['d_st_es']
-
-    d_dur_h, d_dur_w, d_dur_edu, d_dur_s, d_dur_er, d_dur_b, d_dur_l, d_dur_es = param_dict['d_dur_h'], param_dict['d_dur_w'], param_dict['d_dur_edu'], param_dict['d_dur_s'], param_dict['d_dur_er'], param_dict['d_dur_b'], param_dict['d_dur_l'], param_dict['d_dur_es']
-
-    #print(p_st_e_f, p_st_l_f, p_dur_s_f, p_dur_l_f, p_st_e_m, p_st_l_m, p_dur_s_m, p_dur_l_m, p_st_e_r, p_st_l_r, p_dur_s_r, p_dur_l_r, p_t, error_w, error_z, error_x, error_d, d_st_h, d_st_w, d_st_edu, d_st_s, d_st_er, d_st_b, d_st_l, d_st_es, d_dur_h, d_dur_w, d_dur_edu, d_dur_s, d_dur_er, d_dur_b, d_dur_l, d_dur_es)
-    return p_st_e_f, p_st_l_f, p_dur_s_f, p_dur_l_f, p_st_e_m, p_st_l_m, p_dur_s_m, p_dur_l_m, p_st_e_r, p_st_l_r, p_dur_s_r, p_dur_l_r, p_t, error_w, error_z, error_x, error_d, d_st_h, d_st_w, d_st_edu, d_st_s, d_st_er, d_st_b, d_st_l, d_st_es, d_dur_h, d_dur_w, d_dur_edu, d_dur_s, d_dur_er, d_dur_b, d_dur_l, d_dur_es
 
 def compute_tmat(df_hh, h, modes = 'all'):
     '''
