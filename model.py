@@ -36,10 +36,10 @@ def optimize_schedule(df = None, travel_times = None, distances = None, n_iter =
 #---------------------------------- INITIALIZE PARAMETERS ---------------------------------------#
 
     if parameters is None:
-        p_st_e = {'F': 0,'M': -0.61,'NF': -2.4}#penalties for early arrival
-        p_st_l = {'F': 0,'M': -2.4,'NF': -9.6}  #penalties for late arrival
-        p_dur_s = {'F': -0.61,'M': -2.4,'NF': -9.6}#penalties for short duration
-        p_dur_l = {'F': -0.61,'M': -2.4,'NF': -9.6}#penalties for long duration
+        penalty_early = {'F': 0,'M': -0.61,'NF': -2.4}#penalties for early arrival
+        penalty_late = {'F': 0,'M': -2.4,'NF': -9.6}  #penalties for late arrival
+        penalty_short = {'F': -0.61,'M': -2.4,'NF': -9.6}#penalties for short duration
+        penalty_long = {'F': -0.61,'M': -2.4,'NF': -9.6}#penalties for long duration
 
         constants = {"home": 0,
         "dawn": 0,
@@ -52,20 +52,45 @@ def optimize_schedule(df = None, travel_times = None, distances = None, n_iter =
         "leisure": 0,
         "escort": 0}
 
+        penalty_travel= -1 #penalty for travel time
+
+        error_w = np.random.normal(scale = var, size = 2)
+        error_x = np.random.normal(scale = var, size = 4) #discretization start time: 4h time blocks
+        error_d = np.random.normal(scale = var, size = 6)
+        error_z = np.random.normal(scale = var, size = 2)
+
+        if deterministic:
+            EV_error = 0
+        else:
+            EV_error = np.random.gumbel()
 
 
     else:
-        p_st_e = parameters['p_st_e']
-        p_st_l =  parameters['p_st_l']
-        p_dur_s =  parameters['p_dur_s']
-        p_dur_l =  parameters['p_dur_l']
+
+        #TO DO: create function to read params from dict/JSON file
+        penalty_early = parameters['penalty_early']
+        penalty_late =  parameters['penalty_late']
+        penalty_short =  parameters['penalty_short']
+        penalty_long =  parameters['penalty_long']
 
         constants = parameters['constants']
 
-        if 'work' in p_st_e.keys():
+        if 'work' in penalty_early.keys():
             activity_specific = True
 
-    p_t = -1 #penalty for travel time
+        penalty_travel = parameters['penalty_travel'] #penalty for travel time
+
+        error_w = parameters['errors']['participation'][n_iter]
+        error_x = parameters['errors']['start_time'][n_iter] #discretization start time: 4h time blocks
+        error_d = parameters['errors']['duration'][n_iter]
+        error_z = parameters['errors']['sequence'][n_iter]
+
+        if deterministic:
+            EV_error = 0
+        else:
+            EV_error = parameters['errors']['EV'][n_iter]
+
+        preferences = parameters['preferences'][n_iter]
 
 
     #values of time (Weis et al, 2021 - table 6)
@@ -109,17 +134,6 @@ def optimize_schedule(df = None, travel_times = None, distances = None, n_iter =
             6: 0, #business trip
             8: 12, #leisure,
             9: 0} #escort
-
-    error_w = np.random.normal(scale = var, size = 2)
-    error_x = np.random.normal(scale = var, size = 4) #discretization start time: 4h time blocks
-    error_d = np.random.normal(scale = var, size = 6)
-    error_z = np.random.normal(scale = var, size = 2)
-
-
-    if deterministic:
-        EV_error = 0
-    else:
-        EV_error = np.random.gumbel()
 
 
     #dictionaries containing data
@@ -198,15 +212,15 @@ def optimize_schedule(df = None, travel_times = None, distances = None, n_iter =
 
     m.sum(w[a] * (
     #penalties start time
-    (p_st_e[utility_index(a)]) * m.max(des_start[act_type[a]]-x[a], 0)
-    +(p_st_l[utility_index(a)]) * m.max(x[a]-des_start[act_type[a]], 0)
+    (penalty_early[utility_index(a)]) * m.max(des_start[act_type[a]]-x[a], 0)
+    +(penalty_late[utility_index(a)]) * m.max(x[a]-des_start[act_type[a]], 0)
 
     #penalties duration
-    +(p_dur_s[utility_index(a)]) * m.max(des_duration[act_type[a]]-d[a], 0)
-    +(p_dur_l[utility_index(a)]) * m.max(d[a] - des_duration[act_type[a]], 0)
+    +(penalty_short[utility_index(a)]) * m.max(des_duration[act_type[a]]-d[a], 0)
+    +(penalty_long[utility_index(a)]) * m.max(d[a] - des_duration[act_type[a]], 0)
 
     #penalties travel (time and cost)
-    +(p_t) * tt[a]
+    +(penalty_travel) * tt[a]
     +(p_t_cost[mode[a]]) * tc[a]
 
     #activity cost

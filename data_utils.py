@@ -167,10 +167,10 @@ def create_params(biogeme_pickle, desired_times = None):
     estim_param = results.getBetaValues()
     param_names = list(estim_param.keys())
 
-    parameters['p_st_e'] = {i.split(":")[0]: estim_param[i] for i in param_names if "early" in i}
-    parameters['p_st_l'] = {i.split(":")[0]: estim_param[i] for i in param_names if "late" in i}
-    parameters['p_dur_s'] = {i.split(":")[0]: estim_param[i] for i in param_names if "short" in i}
-    parameters['p_dur_l'] = {i.split(":")[0]: estim_param[i] for i in param_names if "long" in i}
+    parameters['penalty_early'] = {i.split(":")[0]: estim_param[i] for i in param_names if "early" in i}
+    parameters['penalty_late'] = {i.split(":")[0]: estim_param[i] for i in param_names if "late" in i}
+    parameters['penalty_short'] = {i.split(":")[0]: estim_param[i] for i in param_names if "short" in i}
+    parameters['penalty_long'] = {i.split(":")[0]: estim_param[i] for i in param_names if "long" in i}
     parameters['constants'] = {i.split(":")[0]: estim_param[i] for i in param_names if "constant" in i}
 
     if desired_times:
@@ -178,6 +178,34 @@ def create_params(biogeme_pickle, desired_times = None):
         parameters['des_dur'] = {i: desired_times[i]['desired_duration'] for i in list(desired_times.keys())}
 
     return parameters
+
+def create_pseudo_random_params(N, parameter_file, preference_file, error_var):
+
+    parameters = joblib.load(parameter_file) #penalties from biogeme
+
+    error_w = [np.random.normal(scale = error_var, size = 2) for i in range(N)]
+    error_x = [np.random.normal(scale = error_var, size = 4) for i in range(N)] #discretization start time: 4h time blocks
+    error_d = [np.random.normal(scale = error_var, size = 6) for i in range(N)]
+    error_z = [np.random.normal(scale = error_var, size = 2)for i in range(N)]
+    error_EV = [np.random.gumbel() for i in range(N)]
+
+
+    parameters['errors'] = {'participation': error_w, 'start_time': error_x, 'duration': error_d, 'sequence': error_z, 'EV':error_EV}
+    parameters['preferences'] =[draw_preferences(preference_file) for i in range(N)]
+
+    if 'penalty_travel' not in parameters.keys():
+        parameters['penalty_travel'] = -1
+
+    return parameters
+
+def draw_preferences(preference_file):
+    td = joblib.load(open(preference_file, 'rb'))
+    desired_st = {at: td[0][at].rvs() for at in td[0].keys()}
+    desired_dur = {at: td[1][at].rvs() for at in td[1].keys()}
+
+    desired_st['home'] = 0
+
+    return [desired_st, desired_dur]
 
 
 def read_schedule(hh, sched_folder = "MTMC_schedules/", tt_folder = "MTMC_ttmatrices/", mode = "driving", compute = False, verbose = False):
