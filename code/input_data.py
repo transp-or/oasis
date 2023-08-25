@@ -8,7 +8,16 @@ from typing import List, Dict, Tuple, Union, Optional
 
 def data_reader(df: pd.DataFrame, parameters: Optional[Dict] = None) -> List:
     """
-    Transform data from a dataframe schedule into a list of ActivityData objects
+    Transforms data from a dataframe schedule into a list of ActivityData objects
+
+    Parameters
+    ---------------
+    - df: pandas dataframe
+    - parameters: dictionary containing the parameters
+
+    Returns
+    ---------------
+    List of ActivityData objects
     """
     activities = []
     for _,row in df.iterrows():
@@ -35,6 +44,9 @@ class ActivityData():
 
     Methods:
     ------------
+    - read_from_pandas: instantiates class using data from pandas dataframe
+    - read_from_dict: instantiates class using data from dictionary
+    - add_parameters: add activity-specific parameters
 
     """
     def __init__(self, label: Optional[str]= None,  group: Optional[str]= None,location: Optional[Tuple]= None, mode: Optional[str]= None,
@@ -75,6 +87,14 @@ class ActivityData():
                 self.act_id = act_id_default[self.type] if self.type else None
 
     def read_from_pandas(self, df: pd.DataFrame, params: Optional[Dict]) -> None:
+        """
+        Instantiates class using data from pandas dataframe
+
+        Parameters
+        ---------------
+        - df: pandas dataframe
+        - params: dictionary containing the parameters
+        """
         self.label = df.label
         self.group = df.group
         self.location = df.location
@@ -89,6 +109,14 @@ class ActivityData():
 
 
     def read_from_dict(self, dic: Dict, params: Optional[Dict]) -> None:
+        """
+        Instantiates class using data from dictionary
+
+        Parameters
+        ---------------
+        - dic: dictionary
+        - params: dictionary containing the parameters
+        """
         self.label = dic['label']
         self.group =  dic['group']
         self.location =  dic['location']
@@ -103,4 +131,11 @@ class ActivityData():
 
 
     def add_parameters(self, params: Dict) -> None:
+        """
+        Adds activity-specific parameters
+
+        Parameters
+        ---------------
+        - params: dictionary containing the parameters
+        """
         self.activity_parameters = params

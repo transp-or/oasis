@@ -130,7 +130,7 @@ def create_pseudo_random_params(N, parameter_file, preference_file, error_var):
 
 
     parameters['errors'] = {'participation': error_w, 'start_time': error_x, 'duration': error_d, 'sequence': error_z, 'EV':error_EV}
-    parameters['preferences'] =[draw_preferences(preference_file) for i in range(N)]
+    #parameters['preferences'] =[draw_preferences(preference_file) for i in range(N)]
 
     if 'penalty_travel' not in parameters.keys():
         parameters['penalty_travel'] = -1

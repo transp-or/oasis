@@ -19,14 +19,19 @@ UTILITY_PARAMS = {
     }
 
 
-N_ITER = 10
+N_ITER = 100
 
 def main():
 
     dataset = data_reader(DATA,PARAMS)
     new_simulation = MIP(dataset, UTILITY_PARAMS,TT)
 
-    results = new_simulation.run(n_iter = N_ITER, verbose = 5)
+    results = new_simulation.run(n_iter = N_ITER, verbose = 25)
+
+    #visualise results
+    results.plot(save_fig='png')
+    results.plot_distribution(save_fig='png')
+    results.compute_statistics(['home', 'work', 'leisure'])
 
 
 if __name__ == '__main__':

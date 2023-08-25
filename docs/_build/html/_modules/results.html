@@ -1,0 +1,341 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>results &#8212; OASIS 1.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for results</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">joblib</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">matplotlib.patches</span> <span class="k">as</span> <span class="nn">mpatches</span>
+
+
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span> <span class="nn">data_utils</span> <span class="kn">import</span> <span class="n">plot_schedule</span><span class="p">,</span> <span class="n">bootstrap_mean</span><span class="p">,</span> <span class="n">print_time_format</span><span class="p">,</span> <span class="n">discretize_sched</span><span class="p">,</span> <span class="n">activity_colors</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+
+<div class="viewcode-block" id="Results"><a class="viewcode-back" href="../results.html#results.Results">[docs]</a><span class="k">class</span> <span class="nc">Results</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Class to handle optimization results, plot schedules and compute statistics.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">    ---------------</span>
+<span class="sd">    - solutions: list of dataframes containing the optimized schedules</span>
+<span class="sd">    - runtimes: list containing the runtimes of each iteration</span>
+<span class="sd">    - n_iter: number of simulation iterations.</span>
+
+<span class="sd">    Methods:</span>
+<span class="sd">    ---------------</span>
+<span class="sd">    - plot: plots the given schedules</span>
+<span class="sd">    - compute_statistics: compute average duration and frequency for each activity in the optimal schedules</span>
+<span class="sd">    - plot_distribution:</span>
+<span class="sd">    - get_solutions: returns list of optimized schedules</span>
+<span class="sd">    - get_runtimes: returns list of runtimes for each iteration.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">solutions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">runtimes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">objective_values</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parameters:</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        - solutions: list of dataframes containing the optimized schedules</span>
+<span class="sd">        - runtimes: list containing the runtimes of each iteration</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">solutions</span> <span class="o">=</span> <span class="n">solutions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">runtimes</span> <span class="o">=</span> <span class="n">runtimes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">objective_values</span> <span class="o">=</span> <span class="n">objective_values</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">solutions</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_iter</span><span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">solutions</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_iter</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;Results object for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_iter</span><span class="si">}</span><span class="s1"> iterations. Total runtime:&#39;</span> <span class="o">+</span> <span class="n">print_time_format</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">runtimes</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="Results.plot"><a class="viewcode-back" href="../results.html#results.Results.plot">[docs]</a>    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plot_every</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">colors</span> <span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;colorblind&#39;</span><span class="p">,</span> <span class="n">title</span> <span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">save_fig</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;png&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plots a given schedule.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        - colors: name of seaborn color palette, see options here: https://seaborn.pydata.org/tutorial/color_palettes.html</span>
+<span class="sd">        - title: plot title as a string</span>
+<span class="sd">        - save_fig: export format (png/pdf/svg) as string. if None, the figure is not saved.</span>
+
+<span class="sd">        Return:</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        Matplotlib figure, either printed or saved to an external file if save_fig is not None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_iter</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;There is no schedule to plot.&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">sol</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">solutions</span><span class="p">):</span>
+
+            <span class="k">if</span> <span class="n">i</span><span class="o">%</span><span class="n">plot_every</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">fig</span> <span class="o">=</span> <span class="n">plot_schedule</span><span class="p">(</span><span class="n">sol</span><span class="p">,</span> <span class="n">colors</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">title</span><span class="p">:</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">fontsize</span> <span class="o">=</span> <span class="mi">14</span><span class="p">,</span> <span class="n">fontweight</span> <span class="o">=</span> <span class="s1">&#39;bold&#39;</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">save_fig</span><span class="p">:</span>
+                    <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;schedule</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">.</span><span class="si">{</span><span class="n">save_fig</span><span class="si">}</span><span class="s1">&#39;</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span><span class="nb">format</span> <span class="o">=</span> <span class="n">save_fig</span><span class="p">)</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Figure saved at </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="Results.compute_statistics"><a class="viewcode-back" href="../results.html#results.Results.compute_statistics">[docs]</a>    <span class="k">def</span> <span class="nf">compute_statistics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">activities</span> <span class="p">:</span> <span class="n">List</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;education&#39;</span><span class="p">,</span> <span class="s1">&#39;leisure&#39;</span><span class="p">,</span> <span class="s1">&#39;work&#39;</span><span class="p">,</span> <span class="s1">&#39;shopping&#39;</span><span class="p">],</span> <span class="n">bootstrap</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">save</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;out_stats.joblib&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute aggregate statistics for the optimized schedules.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        - activities: list of activities of interest for the computations.</span>
+<span class="sd">        - bootstrap: number of bootstrap samples to generate, to compute the 95% confidence intervals.</span>
+<span class="sd">        - verbose: if True, prints computed statistics.</span>
+<span class="sd">        - save: if filename is provided, save statistics to file</span>
+
+<span class="sd">        Return:</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        List of computed statistics, either saved or printed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">sol</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">solutions</span><span class="p">:</span>
+            <span class="n">sol</span><span class="p">[</span><span class="s1">&#39;act_label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sol</span><span class="o">.</span><span class="n">label</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="s1">&#39;home&#39;</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;0123456789&#39;</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;dawn&#39;</span><span class="p">,</span> <span class="s1">&#39;dusk&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="n">x</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;0123456789&#39;</span><span class="p">))</span>
+
+        <span class="n">sol_ooh</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">solutions</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">act_label</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">]</span> <span class="c1">#only out of home solutions</span>
+
+        <span class="c1">#------------------------------Proportion of out-of-home schedules----------------------------------------------</span>
+        <span class="n">f_ooh</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">sol_ooh</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">solutions</span><span class="p">)</span>
+
+        <span class="c1">#----------------------------- Average total time out of home (for out of home schedules) ----------------------</span>
+        <span class="n">mean_time_ooh</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">d</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">act_label</span> <span class="o">!=</span> <span class="s1">&#39;home&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">duration</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">sol_ooh</span><span class="p">])</span>
+        <span class="n">mean_time_ooh_bs</span><span class="p">,</span> <span class="n">ci_time</span> <span class="o">=</span> <span class="n">bootstrap_mean</span><span class="p">([</span><span class="n">d</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">act_label</span> <span class="o">!=</span> <span class="s1">&#39;home&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">duration</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">sol_ooh</span><span class="p">],</span> <span class="n">bootstrap</span><span class="p">)</span>
+
+        <span class="c1">#------------------------- Average number of activities out of home (for out of home schedules)------------------</span>
+        <span class="n">mean_act_ooh</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">act_label</span> <span class="o">!=</span> <span class="s1">&#39;home&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">sol_ooh</span><span class="p">])</span>
+        <span class="n">mean_act_ooh_bs</span><span class="p">,</span> <span class="n">ci_act</span> <span class="o">=</span> <span class="n">bootstrap_mean</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">act_label</span> <span class="o">!=</span> <span class="s1">&#39;home&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">sol_ooh</span><span class="p">],</span> <span class="n">bootstrap</span><span class="p">)</span>
+
+        <span class="c1">#---------------------  Average time spent in each activity (for out of home schedules)-------------------------</span>
+        <span class="n">mean_time_per_act</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">d</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">act_label</span><span class="o">==</span><span class="n">a</span><span class="p">]</span><span class="o">.</span><span class="n">duration</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">sol_ooh</span> <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">act_label</span><span class="o">.</span><span class="n">unique</span><span class="p">()])</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">activities</span><span class="p">]</span>
+        <span class="n">mean_time_per_act_bs</span> <span class="o">=</span> <span class="p">[</span><span class="n">bootstrap_mean</span><span class="p">([</span><span class="n">d</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">act_label</span><span class="o">==</span><span class="n">a</span><span class="p">]</span><span class="o">.</span><span class="n">duration</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">sol_ooh</span> <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">act_label</span><span class="o">.</span><span class="n">unique</span><span class="p">()],</span><span class="n">bootstrap</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">activities</span><span class="p">]</span>
+        <span class="n">ci_time_act</span> <span class="o">=</span> <span class="p">[</span><span class="n">bootstrap_mean</span><span class="p">([</span><span class="n">d</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">act_label</span><span class="o">==</span><span class="n">a</span><span class="p">]</span><span class="o">.</span><span class="n">duration</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">sol_ooh</span> <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">act_label</span><span class="o">.</span><span class="n">unique</span><span class="p">()],</span><span class="n">bootstrap</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">activities</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Summary of collected statistics:&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;------------------------------------------------</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Total number of schedules: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">solutions</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Proportion of out-of-home schedules: </span><span class="si">{</span><span class="n">f_ooh</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1"> %&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Average time spent out-of-home: </span><span class="si">{</span><span class="n">mean_time_ooh</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">, CI: [</span><span class="si">{</span><span class="n">ci_time</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">,</span><span class="si">{</span><span class="n">ci_time</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">] hours&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Average number of out-of-home activities: </span><span class="si">{</span><span class="n">mean_act_ooh</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">, CI: [</span><span class="si">{</span><span class="n">ci_act</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">ci_act</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">]&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;------------------------------------------------</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Average duration of each activity:&#39;</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">act</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">activities</span><span class="p">):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">act</span><span class="o">.</span><span class="n">capitalize</span><span class="p">()</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">mean_time_per_act</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">, CI: [</span><span class="si">{</span><span class="n">ci_time_act</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">ci_time_act</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">] hours&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;------------------------------------------------</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">save</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">save</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">save_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;frequency_ooh&#39;</span><span class="p">:</span> <span class="n">f_ooh</span><span class="p">,</span>
+            <span class="s1">&#39;mean_time_ooh&#39;</span><span class="p">:</span> <span class="n">mean_time_ooh</span><span class="p">,</span>
+            <span class="s1">&#39;mean_time_ooh_bs&#39;</span><span class="p">:</span><span class="n">mean_time_ooh_bs</span><span class="p">,</span>
+            <span class="s1">&#39;mean_act_ooh&#39;</span><span class="p">:</span> <span class="n">mean_act_ooh</span><span class="p">,</span>
+            <span class="s1">&#39;mean_act_ooh_bs&#39;</span><span class="p">:</span> <span class="n">mean_act_ooh_bs</span><span class="p">,</span>
+            <span class="s1">&#39;mean_time_per_act&#39;</span><span class="p">:</span><span class="n">mean_time_per_act</span><span class="p">,</span>
+            <span class="s1">&#39; mean_time_per_act_bs&#39;</span><span class="p">:</span> <span class="n">mean_time_per_act_bs</span><span class="p">}</span>
+            <span class="n">joblib</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">save_dict</span><span class="p">,</span> <span class="n">save</span><span class="p">)</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Saved statistics to: </span><span class="si">{</span><span class="n">save</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="Results.plot_distribution"><a class="viewcode-back" href="../results.html#results.Results.plot_distribution">[docs]</a>    <span class="k">def</span> <span class="nf">plot_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exclude</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">]</span><span class="o">=</span> <span class="p">[</span><span class="s2">&quot;escort&quot;</span><span class="p">,</span> <span class="s2">&quot;business_trip&quot;</span><span class="p">,</span> <span class="s2">&quot;errands_services&quot;</span><span class="p">],</span> <span class="n">block_size</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">5</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span> <span class="n">figure_size</span><span class="p">:</span> <span class="n">List</span> <span class="o">=</span> <span class="p">[</span><span class="mi">7</span><span class="p">,</span><span class="mi">4</span><span class="p">],</span> <span class="n">save_fig</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;png&#39;</span><span class="p">)</span><span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plots aggregate time of  day distribution.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        - exclude: list of activities to exclude from the visualization</span>
+<span class="sd">        - block_size: size of the discretization in hours. Default: 5/60 hours.</span>
+<span class="sd">        - figure_size: size of figure</span>
+<span class="sd">        - save_fig: xport format (png/pdf/svg) as string. if None, the figure is not saved.</span>
+
+<span class="sd">        Return:</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        Matplotlib figure, either printed or saved to an external file if save_fig is not None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">disc_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">solutions</span><span class="p">:</span>
+
+            <span class="n">s</span><span class="p">[</span><span class="s1">&#39;act_label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">label</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;0123456789&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;dawn&#39;</span><span class="p">,</span> <span class="s1">&#39;dusk&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="s1">&#39;home&#39;</span><span class="p">)</span>
+            <span class="n">list_act</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">act_label</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">exclude</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">act_label</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="o">~</span><span class="n">s</span><span class="o">.</span><span class="n">act_label</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">exclude</span><span class="p">)]</span>
+            <span class="n">discret_s</span> <span class="o">=</span> <span class="n">discretize_sched</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">block_size</span> <span class="o">=</span> <span class="n">block_size</span><span class="p">)</span>
+            <span class="n">disc_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">discret_s</span><span class="p">)</span>
+
+
+        <span class="n">final_dict</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span> <span class="c1">#dictionary storing start times distributions for all activities</span>
+        <span class="n">time_slots</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="mi">24</span><span class="o">/</span><span class="n">block_size</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">time_slots</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">dicts</span> <span class="ow">in</span> <span class="n">disc_list</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">dicts</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">final_dict</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dicts</span><span class="p">[</span><span class="n">t</span><span class="p">])</span>
+
+        <span class="n">disc_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">final_dict</span><span class="p">,</span> <span class="n">orient</span> <span class="o">=</span> <span class="s1">&#39;index&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">var_name</span> <span class="o">=</span> <span class="s1">&#39;time&#39;</span><span class="p">,</span> <span class="n">value_name</span><span class="o">=</span> <span class="s1">&#39;activity&#39;</span><span class="p">)</span>
+        <span class="n">disc_df</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">disc_df</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">round</span><span class="p">(</span><span class="n">x</span> <span class="o">*</span> <span class="n">block_size</span><span class="p">))</span>
+
+        <span class="n">disc_grouped</span> <span class="o">=</span> <span class="p">(</span><span class="n">disc_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;time&#39;</span><span class="p">,</span> <span class="s1">&#39;activity&#39;</span><span class="p">])[</span><span class="s1">&#39;activity&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="o">/</span><span class="n">disc_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;time&#39;</span><span class="p">)[</span><span class="s1">&#39;activity&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">())</span>
+
+
+        <span class="n">colors</span> <span class="o">=</span> <span class="n">activity_colors</span><span class="p">(</span><span class="n">palette</span> <span class="o">=</span> <span class="s2">&quot;colorblind&quot;</span><span class="p">)</span>
+        <span class="n">colors</span><span class="p">[</span><span class="s1">&#39;home&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;gainsboro&#39;</span>
+
+        <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span> <span class="o">=</span> <span class="n">figure_size</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_facecolor</span><span class="p">(</span><span class="s1">&#39;gainsboro&#39;</span><span class="p">)</span>
+
+        <span class="n">disc_grouped</span><span class="o">.</span><span class="n">unstack</span><span class="p">()</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;home&#39;</span><span class="p">,</span> <span class="n">axis</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">stacked</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">color</span> <span class="o">=</span> <span class="n">colors</span><span class="p">,</span> <span class="n">edgecolor</span> <span class="o">=</span> <span class="s1">&#39;white&#39;</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">ax</span><span class="p">,</span> <span class="n">legend</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">rot</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># LEGEND</span>
+        <span class="n">other_patches</span> <span class="o">=</span> <span class="p">[</span><span class="n">mpatches</span><span class="o">.</span><span class="n">Patch</span><span class="p">(</span><span class="n">color</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">colors</span><span class="p">[</span><span class="n">a</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">a</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">list_act</span><span class="p">)]</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">handles</span><span class="o">=</span><span class="n">other_patches</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Frequency &quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Time [h]&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">25</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Time of day distribution&quot;</span><span class="p">,</span> <span class="n">fontsize</span> <span class="o">=</span> <span class="mi">12</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">save_fig</span><span class="p">:</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;time_of_day_dist.</span><span class="si">{</span><span class="n">save_fig</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span><span class="nb">format</span> <span class="o">=</span> <span class="n">save_fig</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Figure saved at </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="Results.get_solutions"><a class="viewcode-back" href="../results.html#results.Results.get_solutions">[docs]</a>    <span class="k">def</span> <span class="nf">get_solutions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Returns list of optimized schedules&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">solutions</span></div>
+
+<div class="viewcode-block" id="Results.get_runtimes"><a class="viewcode-back" href="../results.html#results.Results.get_runtimes">[docs]</a>    <span class="k">def</span> <span class="nf">get_runtimes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Returns list of runtimes for each iteration.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">runtimes</span></div>
+
+<div class="viewcode-block" id="Results.get_objective_values"><a class="viewcode-back" href="../results.html#results.Results.get_objective_values">[docs]</a>    <span class="k">def</span> <span class="nf">get_objective_values</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Returns list of objective_values for each iteration.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">objective_values</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">OASIS</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">code</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Janody Pougala.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

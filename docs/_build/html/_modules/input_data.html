@@ -1,0 +1,243 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>input_data &#8212; OASIS 1.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for input_data</h1><div class="highlight"><pre>
+<span></span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span>
+
+
+
+<div class="viewcode-block" id="data_reader"><a class="viewcode-back" href="../input_data.html#input_data.data_reader">[docs]</a><span class="k">def</span> <span class="nf">data_reader</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">parameters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Transforms data from a dataframe schedule into a list of ActivityData objects</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ---------------</span>
+<span class="sd">    - df: pandas dataframe</span>
+<span class="sd">    - parameters: dictionary containing the parameters</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ---------------</span>
+<span class="sd">    List of ActivityData objects</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">activities</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">_</span><span class="p">,</span><span class="n">row</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+        <span class="n">activities</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ActivityData</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">row</span><span class="p">,</span> <span class="n">activity_parameters</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">activities</span></div>
+
+
+<div class="viewcode-block" id="ActivityData"><a class="viewcode-back" href="../input_data.html#input_data.ActivityData">[docs]</a><span class="k">class</span> <span class="nc">ActivityData</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class stores the data related to an activity (type, location, mode, feasible times), and associated parameters (desired times, penalties).</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">    ------------</span>
+<span class="sd">    - label: unique label of the activity</span>
+<span class="sd">    - group: activity type (does not need to be unique)</span>
+<span class="sd">    - location: tuple of coordinates (must be an existing key in the travel time dictionary)</span>
+<span class="sd">    - mode: mode of transportation (must be an existing key in the travel time dictionary)</span>
+<span class="sd">    - feasible_start: feaible start time in hours</span>
+<span class="sd">    - feasible_end: feasible end time in hours</span>
+<span class="sd">    - desired_start: desired start time in hours</span>
+<span class="sd">    - desired_duration: desired duration in hours</span>
+<span class="sd">    - act_id: ID of the activity, should either be an integer or a dictionary mapping the activity type to an integer ID.</span>
+<span class="sd">    - data: structure keeping the data. Can be a dictionary, a dataframe or a valid JSON string.</span>
+
+<span class="sd">    Methods:</span>
+<span class="sd">    ------------</span>
+<span class="sd">    - read_from_pandas: instantiates class using data from pandas dataframe</span>
+<span class="sd">    - read_from_dict: instantiates class using data from dictionary</span>
+<span class="sd">    - add_parameters: add activity-specific parameters</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="n">group</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span> <span class="kc">None</span><span class="p">,</span><span class="n">location</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">]</span><span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">activity_parameters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span><span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">feasible_start</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">feasible_end</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">desired_start</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">desired_duration</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">act_id</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">read_from_pandas</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">activity_parameters</span><span class="p">)</span>
+
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="n">Dict</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">read_from_dict</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">activity_parameters</span><span class="p">)</span>
+
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">read_from_dict</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">activity_parameters</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="o">=</span> <span class="n">group</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="n">location</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mode_travel</span> <span class="o">=</span> <span class="n">mode</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">activity_parameters</span> <span class="o">=</span> <span class="n">activity_parameters</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">feasible_start</span> <span class="o">=</span> <span class="n">feasible_start</span> <span class="k">if</span> <span class="n">feasible_start</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">feasible_end</span> <span class="o">=</span> <span class="n">feasible_end</span> <span class="k">if</span> <span class="n">feasible_end</span> <span class="k">else</span> <span class="mi">24</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">desired_start</span> <span class="o">=</span> <span class="n">desired_start</span> <span class="k">if</span> <span class="n">desired_start</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">desired_duration</span> <span class="o">=</span> <span class="n">desired_duration</span> <span class="k">if</span> <span class="n">desired_duration</span> <span class="k">else</span> <span class="mi">0</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;dawn&#39;</span><span class="p">,</span> <span class="s1">&#39;dusk&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="s1">&#39;home&#39;</span>
+
+            <span class="k">if</span> <span class="n">act_id</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">act_id</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">act_id</span> <span class="o">=</span> <span class="n">act_id</span>
+            <span class="k">elif</span> <span class="n">act_id</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">act_id</span> <span class="o">=</span> <span class="n">act_id</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">act_id_default</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;home&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span><span class="s2">&quot;work&quot;</span><span class="p">:</span><span class="mi">2</span><span class="p">,</span><span class="s2">&quot;education&quot;</span><span class="p">:</span><span class="mi">3</span><span class="p">,</span><span class="s2">&quot;shopping&quot;</span><span class="p">:</span><span class="mi">4</span><span class="p">,</span>
+                <span class="s2">&quot;errands_services&quot;</span><span class="p">:</span><span class="mi">5</span><span class="p">,</span><span class="s2">&quot;business_trip&quot;</span><span class="p">:</span><span class="mi">6</span><span class="p">,</span><span class="s2">&quot;leisure&quot;</span><span class="p">:</span><span class="mi">8</span><span class="p">,</span> <span class="s2">&quot;escort&quot;</span><span class="p">:</span><span class="mi">9</span><span class="p">}</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">act_id</span> <span class="o">=</span> <span class="n">act_id_default</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="k">else</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="ActivityData.read_from_pandas"><a class="viewcode-back" href="../input_data.html#input_data.ActivityData.read_from_pandas">[docs]</a>    <span class="k">def</span> <span class="nf">read_from_pandas</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Instantiates class using data from pandas dataframe</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        - df: pandas dataframe</span>
+<span class="sd">        - params: dictionary containing the parameters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">label</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">group</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">location</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mode_travel</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">mode_travel</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">feasible_start</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">feasible_start</span> <span class="k">if</span> <span class="s1">&#39;feasible_start&#39;</span> <span class="ow">in</span> <span class="n">df</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">feasible_end</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">feasible_end</span> <span class="k">if</span> <span class="s1">&#39;feasible_end&#39;</span> <span class="ow">in</span> <span class="n">df</span> <span class="k">else</span> <span class="mi">24</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">desired_start</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">desired_start</span> <span class="k">if</span> <span class="s1">&#39;desired_start&#39;</span> <span class="ow">in</span> <span class="n">df</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">desired_duration</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">desired_duration</span> <span class="k">if</span> <span class="s1">&#39;desired_duration&#39;</span> <span class="ow">in</span> <span class="n">df</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;dawn&#39;</span><span class="p">,</span> <span class="s1">&#39;dusk&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="s1">&#39;home&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">activity_parameters</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">]</span> <span class="k">if</span> <span class="n">params</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">act_id</span> <span class="o">=</span><span class="n">df</span><span class="o">.</span><span class="n">act_id</span></div>
+
+
+<div class="viewcode-block" id="ActivityData.read_from_dict"><a class="viewcode-back" href="../input_data.html#input_data.ActivityData.read_from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">read_from_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dic</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Instantiates class using data from dictionary</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        - dic: dictionary</span>
+<span class="sd">        - params: dictionary containing the parameters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">dic</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="o">=</span>  <span class="n">dic</span><span class="p">[</span><span class="s1">&#39;group&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span>  <span class="n">dic</span><span class="p">[</span><span class="s1">&#39;location&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mode_travel</span> <span class="o">=</span>  <span class="n">dic</span><span class="p">[</span><span class="s1">&#39;mode&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">feasible_start</span> <span class="o">=</span>  <span class="n">dic</span><span class="p">[</span><span class="s1">&#39;feasible_start&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;feasible_start&#39;</span> <span class="ow">in</span> <span class="n">dic</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">feasible_end</span> <span class="o">=</span> <span class="n">dic</span><span class="p">[</span><span class="s1">&#39;feasible_end&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;feasible_end&#39;</span> <span class="ow">in</span> <span class="n">dic</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">else</span> <span class="mi">24</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">desired_start</span> <span class="o">=</span> <span class="n">dic</span><span class="p">[</span><span class="s1">&#39;desired_start&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;desired_start&#39;</span> <span class="ow">in</span> <span class="n">dic</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">desired_duration</span> <span class="o">=</span> <span class="n">dic</span><span class="p">[</span><span class="s1">&#39;desired_duration&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;desired_duration&#39;</span> <span class="ow">in</span> <span class="n">dic</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;dawn&#39;</span><span class="p">,</span> <span class="s1">&#39;dusk&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="s1">&#39;home&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">activity_parameters</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">]</span> <span class="k">if</span> <span class="n">params</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">act_id</span> <span class="o">=</span><span class="n">dic</span><span class="p">[</span><span class="s1">&#39;act_id&#39;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="ActivityData.add_parameters"><a class="viewcode-back" href="../input_data.html#input_data.ActivityData.add_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">add_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds activity-specific parameters</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        - params: dictionary containing the parameters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">activity_parameters</span> <span class="o">=</span> <span class="n">params</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">OASIS</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">code</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Janody Pougala.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

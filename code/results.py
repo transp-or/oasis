@@ -1,19 +1,12 @@
 import numpy as np
 import pandas as pd
 import joblib
-import pickle
 
-import time
-import datetime
-import os
-
-import seaborn as sns
-import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from matplotlib.backends.backend_pdf import PdfPages
 
-from typing import List, Set, Dict, Tuple, Union, Optional
+
+from typing import List, Union, Optional
 from data_utils import plot_schedule, bootstrap_mean, print_time_format, discretize_sched, activity_colors
 
 from collections import defaultdict
@@ -56,7 +49,7 @@ class Results():
         return f'Results object for {self.n_iter} iterations. Total runtime:' + print_time_format(sum(self.runtimes))
 
 
-    def plot(self, plot_every: int = 1, colors : str = 'colorblind', title : Optional[str] = None, save_fig: Optional[str] = None) -> None:
+    def plot(self, plot_every: int = 1, colors : str = 'colorblind', title : Optional[str] = None, save_fig: Optional[str] = 'png') -> None:
         """
         Plots a given schedule.
 
@@ -101,10 +94,11 @@ class Results():
         - activities: list of activities of interest for the computations.
         - bootstrap: number of bootstrap samples to generate, to compute the 95% confidence intervals.
         - verbose: if True, prints computed statistics.
+        - save: if filename is provided, save statistics to file
 
         Return:
         ---------------
-        List of computed statistics
+        List of computed statistics, either saved or printed
         """
         for sol in self.solutions:
             sol['act_label'] = sol.label.apply(lambda x: 'home' if x.rstrip('0123456789') in ['dawn', 'dusk'] else x.rstrip('0123456789'))
@@ -156,7 +150,7 @@ class Results():
         return None
 
 
-    def plot_distribution(self, exclude: Optional[List]= ["escort", "business_trip", "errands_services"], block_size: float = 5/60, figure_size: List = [7,4], save_fig: Optional[str] = None )-> None:
+    def plot_distribution(self, exclude: Optional[List]= ["escort", "business_trip", "errands_services"], block_size: float = 5/60, figure_size: List = [7,4], save_fig: Optional[str] = 'png')-> None:
         """
         Plots aggregate time of  day distribution.
 
@@ -164,10 +158,12 @@ class Results():
         ---------------
         - exclude: list of activities to exclude from the visualization
         - block_size: size of the discretization in hours. Default: 5/60 hours.
+        - figure_size: size of figure
+        - save_fig: xport format (png/pdf/svg) as string. if None, the figure is not saved.
 
         Return:
         ---------------
-        Matplotlib figure and axes.
+        Matplotlib figure, either printed or saved to an external file if save_fig is not None.
         """
 
         disc_list = []

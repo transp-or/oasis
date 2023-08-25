@@ -92,6 +92,7 @@ class MIP(OptimModel):
     - objective_function: Defines the schedule-specific utility function to be maximized (overrides parent method)
     - solve: Solves optimization problem
     - run: Runs the simulation
+    - clear: Deletes model object and associated variables/constraints
     """
     def __init__(self, activities: List[ActivityData], utility_parameters: Dict, travel_times: Dict, distances: Optional[Dict] = None, period: int= 24, *args, **kwargs) -> None:
         super().__init__("MIP", activities, utility_parameters, *args, **kwargs)
@@ -134,6 +135,7 @@ class MIP(OptimModel):
         self.model.add_constraints(list_of_constraints)
 
     def clear(self) -> None:
+        """Deletes model object and associated variables and constraints."""
         self.model = None
         self.x = None #start time
         self.z = None #activity sequence indicator
