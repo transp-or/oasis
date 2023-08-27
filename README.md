@@ -13,7 +13,7 @@ We recommend creating a new environment using the provided requirements file to 
 
 ## Tutorial 
 
-An example of how to run the simulator is provided in the ``demo`` notebook. Your main function should be added in the ``runner`` script, which you can run by typing the following command:
+An example of how to run the simulator is provided in the ``demo`` notebooks. Your main function should be added in the ``runner`` script, which you can run by typing the following command:
 ``python runner.py``
 
 ## Citation
