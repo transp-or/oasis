@@ -6,9 +6,9 @@ from error_terms import GaussianError, EVError
 from simulation import MIP
 
 
-DATA = joblib.load('data/example_data.joblib')
-TT = joblib.load('data/example_tt.joblib')
-PARAMS = json.load('data/example_parameters.json')
+DATA = joblib.load('../data/example_data.joblib')
+TT = joblib.load('../data/example_tt.joblib')
+PARAMS = json.load(open('../data/example_parameters.json','r'))
 
 UTILITY_PARAMS = {
     'error_w': GaussianError(),
@@ -19,9 +19,10 @@ UTILITY_PARAMS = {
     }
 
 
-N_ITER = 100
+N_ITER = 1
 
 def main():
+    """Run simulation"""
 
     dataset = data_reader(DATA,PARAMS)
     new_simulation = MIP(dataset, UTILITY_PARAMS,TT)

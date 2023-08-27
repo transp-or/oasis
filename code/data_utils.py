@@ -34,16 +34,16 @@ def cplex_to_df(w, x, d, tt, car_avail, mode_travel, keys, act_id, location, min
     solution_df.reset_index(drop=True, inplace= True)
     return solution_df
 
-def plot_schedule(df, colors = 'colorblind'):
+def plot_schedule(df, axs, colors = 'colorblind'):
     '''
     Plots given schedule.
     df = Pandas dataframe containing schedule. The dataframe must contain the columns 'start_time', 'end_time', 'act_id' and 'label'
     '''
 
-    fig = plt.figure(figsize=[20, 3])
+    
     y1 = [0, 0]
     y2 = [1,1]
-    plt.fill_between([0, 24], y1, y2, color = 'silver')
+    axs.fill_between([0, 24], y1, y2, color = 'silver')
 
     colors = activity_colors(palette = colors)
 
@@ -51,22 +51,22 @@ def plot_schedule(df, colors = 'colorblind'):
     for idx, row in df.iterrows():
         label = row['label'].rstrip('0123456789') if row['label'] not in ['dawn', "dusk"] else 'home'
         x = [row['start_time'], row['end_time']]
-        plt.fill_between(x, y1, y2, color = colors[label])
+        axs.fill_between(x, y1, y2, color = colors[label])
         txt_x = np.mean(x)
         txt_y = 1.2
             #plt.text(txt_x, txt_y, '{}, l={}'.format(row['label'], row['loc_id']), horizontalalignment='center',verticalalignment='center', fontsize = 10)
         if 'home' not in row['label']:
-            plt.text(txt_x, txt_y, '{}'.format(row['label'].rstrip('0123456789')), horizontalalignment='center',verticalalignment='center', fontsize = 12)#, fontweight = 'bold')
+            axs.text(txt_x, txt_y, '{}'.format(row['label'].rstrip('0123456789')), horizontalalignment='center',verticalalignment='center', fontsize = 12)#, fontweight = 'bold')
 
 
-    plt.xticks(np.arange(0,25))
-    plt.yticks([])
-    plt.xlim([0,24])
-    plt.ylim([-1,2])
-    plt.xlabel('Time [h]')
+    axs.set_xticks(np.arange(0,25))
+    axs.set_yticks([])
+    axs.set_xlim([0,24])
+    axs.set_ylim([-1,2])
+    axs.set_xlabel('Time [h]')
     #plt.show()
 
-    return fig
+    return None
     #if save_png:
         #plt.savefig('schedule{}_{}.png'.format(df.hid.values[0],df.person_n.values[0]))
 

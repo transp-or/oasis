@@ -59,6 +59,7 @@
 <li><p>solve: Solves optimization problem</p></li>
 <li><p>run: Runs the simulation</p></li>
 <li><p>clear: Deletes model object and associated variables/constraints</p></li>
+<li><p>check_input:  checks if the input data is corret for the type of simulation selected (overrides parent method)</p></li>
 </ul>
 <dl class="py method">
 <dt class="sig sig-object py" id="simulation.MIP.add_constraint">
@@ -146,22 +147,144 @@ default is the sum of utility functions of all activities in schedule.</p>
 </dd></dl>
 
 <dl class="py class">
+<dt class="sig sig-object py" id="simulation.MultidayMIP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">simulation.</span></span><span class="sig-name descname"><span class="pre">MultidayMIP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">activities</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="input_data.html#input_data.ActivityData" title="input_data.ActivityData"><span class="pre">ActivityData</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">utility_parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">travel_times</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_days</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">day_index</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distances</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">period</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">24</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simulation.html#MultidayMIP"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simulation.MultidayMIP" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#simulation.OptimModel" title="simulation.OptimModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">OptimModel</span></code></a></p>
+<p>This class instanciates a MIP optimisation model (relies on docplex library) for multiday analyses.</p>
+<ul class="simple">
+<li><p>solver: String, ‘MultidayMIP’</p></li>
+<li><p>activities: List of unique activities (ActivityData objects) to be scheduled</p></li>
+<li><p>utility_parameters: Dictionary containing non activity-specific parameters to use in the utility function.  The format should be {param: value}.</p></li>
+<li><p>travel_times: Dictionary containing the mode specific travel times. The format should be {mode: {origin: {destination_1: travel time, destination_2…}}}</p></li>
+<li><p>distances: Dictionary containing the mode specific distances. The format is the same as travel_times.</p></li>
+<li><p>period: Time budget in hours. Default is 24h</p></li>
+<li><p>n_days: Number of days. The total time horizon is computed a sn_days*period</p></li>
+<li><p>day_index: List of indices of the days to be scheduled. (E.g., for a full week, [1,..,7] with 1 being Monday and 7 being Sunday)</p></li>
+<li><p>model: model object</p></li>
+<li><p>keys: unique labels of the activities to be scheduled</p></li>
+</ul>
+<ul class="simple">
+<li><p>add_constraint: Adds a single constraint to the model object.</p></li>
+<li><p>add_constraints: Adds multiple constraints to the model object, in batch.</p></li>
+<li><p>initialize: Creates the model object, with decision variable and constraints (overrides parent method)</p></li>
+<li><p>utility_function: Defines the activity-specific utility function (overrides parent method)</p></li>
+<li><p>objective_function: Defines the schedule-specific utility function to be maximized (overrides parent method)</p></li>
+<li><p>solve: Solves optimization problem</p></li>
+<li><p>run: Runs the simulation</p></li>
+<li><p>clear: Deletes model object and associated variables/constraints</p></li>
+</ul>
+<dl class="py method">
+<dt class="sig sig-object py" id="simulation.MultidayMIP.add_constraint">
+<span class="sig-name descname"><span class="pre">add_constraint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">constraint</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/simulation.html#MultidayMIP.add_constraint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simulation.MultidayMIP.add_constraint" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calls docplex add_constraint() function. Adds a single constraint to the model object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>Constraint</strong> (<em>mathematical expression.</em>) – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simulation.MultidayMIP.add_constraints">
+<span class="sig-name descname"><span class="pre">add_constraints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">list_of_constraints</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/simulation.html#MultidayMIP.add_constraints"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simulation.MultidayMIP.add_constraints" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calls docplex add_constraints() function. Adds a list of constraints to the model object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>list_of_constraints</strong> (<em>list of mathematical expressions.</em>) – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simulation.MultidayMIP.clear">
+<span class="sig-name descname"><span class="pre">clear</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/simulation.html#MultidayMIP.clear"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simulation.MultidayMIP.clear" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deletes model object and associated variables and constraints.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simulation.MultidayMIP.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/simulation.html#MultidayMIP.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simulation.MultidayMIP.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates the model object, with decision variable and constraints</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simulation.MultidayMIP.objective_function">
+<span class="sig-name descname"><span class="pre">objective_function</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/simulation.html#MultidayMIP.objective_function"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simulation.MultidayMIP.objective_function" title="Permalink to this definition">¶</a></dt>
+<dd><p>Objective function of the simulation, to be defined by the user.
+default is the sum of utility functions of all activities in schedule.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>of</strong></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>value of objective function for current decision variables</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simulation.MultidayMIP.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_iter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">bool</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="results.html#results.Results" title="results.Results"><span class="pre">Results</span></a></span></span><a class="reference internal" href="_modules/simulation.html#MultidayMIP.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simulation.MultidayMIP.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs the simulation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>n_iter</strong> (<em>-</em>) – </p></li>
+<li><p><strong>verbose</strong> (<em>-</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Object from Results class.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simulation.MultidayMIP.utility_function">
+<span class="sig-name descname"><span class="pre">utility_function</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">activity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="input_data.html#input_data.ActivityData" title="input_data.ActivityData"><span class="pre">ActivityData</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">day</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/simulation.html#MultidayMIP.utility_function"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simulation.MultidayMIP.utility_function" title="Permalink to this definition">¶</a></dt>
+<dd><p>Activity-specific utility function to be defined by the user. Default is linear utility with penalties for schedule deviations (start time and duration)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>activity</strong> (<em>ActivityData object</em>) – </p></li>
+<li><p><strong>day</strong> (<em>index of day -- 1 is Monday and 7 is Sunday</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>utility</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>value of activity specific utility for current decision variables</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
 <dt class="sig sig-object py" id="simulation.OptimModel">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">simulation.</span></span><span class="sig-name descname"><span class="pre">OptimModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">solver</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activities</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="input_data.html#input_data.ActivityData" title="input_data.ActivityData"><span class="pre">ActivityData</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">utility_parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">settings</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{'optimality_target':</span> <span class="pre">3,</span> <span class="pre">'time_limit':</span> <span class="pre">120}</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simulation.html#OptimModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simulation.OptimModel" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">simulation.</span></span><span class="sig-name descname"><span class="pre">OptimModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">solver</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activities</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="input_data.html#input_data.ActivityData" title="input_data.ActivityData"><span class="pre">ActivityData</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">utility_parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimality_target</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_limit</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">120</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simulation.html#OptimModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simulation.OptimModel" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>This class instanciates an optimisation model.</p>
 <ul class="simple">
 <li><p>solver: String, ‘MIP’ or ‘CP’</p></li>
 <li><p>activities: List of unique activities (ActivityData objects) to be scheduled</p></li>
 <li><p>utility_parameters: Dictionary containing non activity-specific parameters to use in the utility function.  The format should be {param: value}.</p></li>
-<li><p>settings: Dictionary containing settings that will be passed to the solver</p></li>
+<li><p>opt_settings: Dictionary containing settings that will be passed to the solver</p></li>
 <li><p>solve_status: Status of the optimisation problem</p></li>
 </ul>
 <ul class="simple">
 <li><p>utility_function: defines the activity-specific utility function (overriden by children classes)</p></li>
 <li><p>objective_function: defines the schedule-specific utility function to be maximized (overriden by children classes)</p></li>
 <li><p>initialize: creates the model object, with decision variable and constraints (overriden by children classes)</p></li>
+<li><p>check_input: checks if the input data is corret for the type of simulation selected (overriden by children classes)</p></li>
 </ul>
+<dl class="py method">
+<dt class="sig sig-object py" id="simulation.OptimModel.check_input">
+<span class="sig-name descname"><span class="pre">check_input</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/simulation.html#OptimModel.check_input"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simulation.OptimModel.check_input" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if the input data is correct for the type of simulation</p>
+</dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="simulation.OptimModel.initialize">
 <span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/simulation.html#OptimModel.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simulation.OptimModel.initialize" title="Permalink to this definition">¶</a></dt>

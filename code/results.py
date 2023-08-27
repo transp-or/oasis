@@ -29,7 +29,7 @@ class Results():
     - get_runtimes: returns list of runtimes for each iteration.
     """
 
-    def __init__(self, solutions: Optional[List[pd.DataFrame]]=None, runtimes: Optional[List[float]]=None, objective_values: Optional[List[float]]=None) -> None:
+    def __init__(self, solutions: Optional[List[pd.DataFrame]]=None, runtimes: Optional[List[float]]=None, objective_values: Optional[List[float]]=None, multiday: bool = False, day_index: Optional[List] = None) -> None:
         """
         Parameters:
         ---------------
@@ -40,6 +40,11 @@ class Results():
         self.runtimes = runtimes
         self.objective_values = objective_values
 
+        self.multiday = multiday
+        self.day_index = day_index
+        self.n_days = len(self.day_index) if self.day_index else 1
+        self.day_names = {i: day_name for i, day_name in enumerate(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],1)}
+
         if self.solutions:
             self.n_iter= len(self.solutions)
         else:
@@ -49,15 +54,18 @@ class Results():
         return f'Results object for {self.n_iter} iterations. Total runtime:' + print_time_format(sum(self.runtimes))
 
 
-    def plot(self, plot_every: int = 1, colors : str = 'colorblind', title : Optional[str] = None, save_fig: Optional[str] = 'png') -> None:
+    def plot(self, plot_every: int = 1, plot_iter: Optional[int] = None, colors : str = 'colorblind', title : Optional[str] = None, save_fig: Optional[str] = 'png') -> None:
         """
         Plots a given schedule.
 
         Parameters:
         ---------------
-        - colors: name of seaborn color palette, see options here: https://seaborn.pydata.org/tutorial/color_palettes.html
+        - plot_every: plotting frequency as a number of iterations
+        - plot_iter: index of iteration to plot
+        - colors: name of matplotlib/seaborn compatible palette, see options here: https://seaborn.pydata.org/tutorial/color_palettes.html
         - title: plot title as a string
         - save_fig: export format (png/pdf/svg) as string. if None, the figure is not saved.
+
 
         Return:
         ---------------
@@ -68,10 +76,40 @@ class Results():
             print('There is no schedule to plot.')
             return None
 
-        for i,sol in enumerate(self.solutions):
+        if isinstance(plot_iter,int):
+            sol = self.solutions[plot_iter]
+            if not sol:
+                print('There is no schedule to plot. The optimisation might not have been successful.')
+                return None
 
+            if self.multiday:
+                fig = self.plot_multiday(sol, colors)
+            else:
+                fig, ax = plt.subplots(figsize=[20, 3])
+                plot_schedule(sol, ax, colors)
+
+            if title:
+                plt.title(title, fontsize = 14, fontweight = 'bold')
+
+            if save_fig:
+                filename = f'schedule{plot_iter}.{save_fig}'
+                plt.savefig(filename,format = save_fig)
+                print(f'Figure saved at {filename}.')
+
+            else:
+                plt.show()
+            return None
+
+
+        for i,sol in enumerate(self.solutions):
             if i%plot_every == 0:
-                fig = plot_schedule(sol, colors)
+
+                if self.multiday:
+                    fig = self.plot_multiday(sol, colors)
+                else:
+                    fig, ax = plt.subplots(figsize=[20, 3])
+                    plot_schedule(sol, ax, colors)
+
                 if title:
                     plt.title(title, fontsize = 14, fontweight = 'bold')
 
@@ -84,14 +122,39 @@ class Results():
                     plt.show()
         return None
 
+    def plot_multiday(self, multi_schedules: List, colors : str = 'colorblind'):
+        '''
+        Plots schedules for the multiday case.
 
-    def compute_statistics(self, activities : List = ['education', 'leisure', 'work', 'shopping'], bootstrap: int = 100, verbose: bool = True, save: Union[bool, str] = 'out_stats.joblib') -> None:
+        Parameters:
+        ---------------
+        - multischedules: list of schedules in the multiday time horizon
+        - colors: name of matplotlib/seaborn compatible palette, see options here: https://seaborn.pydata.org/tutorial/color_palettes.html
+
+        Returns:
+        ---------------
+        - Matplotlib figure
+        '''
+
+        fig,axs = plt.subplots(self.n_days, 1, figsize=[20, (3*self.n_days +2)])
+
+        for j, day_sched in enumerate(multi_schedules):
+            plot_schedule(day_sched, axs[j])
+            if self.day_index:
+                axs[j].set_title(f'{self.day_names[self.day_index[j]]}', fontweight = 'bold', fontsize = 14)
+
+        plt.tight_layout()
+        return fig
+
+
+    def compute_statistics(self, activities : List = ['education', 'leisure', 'work', 'shopping'], days: Optional[List] = None, bootstrap: int = 100, verbose: bool = True, save: Union[bool, str] = 'out_stats.joblib') -> None:
         """
         Compute aggregate statistics for the optimized schedules.
 
         Parameters:
         ---------------
         - activities: list of activities of interest for the computations.
+        - days: list of days of interest for the computations (only defined in the multiday case)
         - bootstrap: number of bootstrap samples to generate, to compute the 95% confidence intervals.
         - verbose: if True, prints computed statistics.
         - save: if filename is provided, save statistics to file
@@ -100,13 +163,26 @@ class Results():
         ---------------
         List of computed statistics, either saved or printed
         """
-        for sol in self.solutions:
+
+        all_solutions = []
+
+        if self.multiday:
+            if not days:
+                days  = self.day_index #aggregate all days to compute distributions
+
+            all_solutions = [day_sol for solution in self.solutions for i, day_sol in enumerate(solution) if self.day_index[i] in days]
+
+        else:
+            all_solutions = self.solutions
+
+
+        for sol in all_solutions:
             sol['act_label'] = sol.label.apply(lambda x: 'home' if x.rstrip('0123456789') in ['dawn', 'dusk'] else x.rstrip('0123456789'))
 
-        sol_ooh = [s for s in self.solutions if len(s.act_label.unique()) > 1] #only out of home solutions
+        sol_ooh = [s for s in all_solutions if len(s.act_label.unique()) > 1] #only out of home solutions
 
         #------------------------------Proportion of out-of-home schedules----------------------------------------------
-        f_ooh = 100 * len(sol_ooh) / len(self.solutions)
+        f_ooh = 100 * len(sol_ooh) / len(all_solutions)
 
         #----------------------------- Average total time out of home (for out of home schedules) ----------------------
         mean_time_ooh = np.mean([d[d.act_label != 'home'].duration.sum() for d in sol_ooh])
@@ -122,9 +198,17 @@ class Results():
         ci_time_act = [bootstrap_mean([d[d.act_label==a].duration.sum() for d in sol_ooh if a in d.act_label.unique()],bootstrap)[1] for a in activities]
 
         if verbose:
-            print('Summary of collected statistics:')
+            addition = ' '
+            if days:
+                if len(days) > 1:
+                    con = "and" if len(days) == 2 else "to"
+                    addition = f'({self.day_names[min(days)]} {con} {self.day_names[max(days)]})'
+                else:
+                    addition = f'({self.day_names[min(days)]})'
+
+            print('Summary of collected statistics '+self.multiday*addition)
             print('------------------------------------------------\n')
-            print(f'Total number of schedules: {len(self.solutions)}')
+            print(f'Total number of schedules: {len(all_solutions)}')
             print(f'Proportion of out-of-home schedules: {f_ooh:.2f} %')
             print(f'Average time spent out-of-home: {mean_time_ooh:.2f}, CI: [{ci_time[0]:.3f},{ci_time[1]:.3f}] hours')
             print(f'Average number of out-of-home activities: {mean_act_ooh:.2f}, CI: [{ci_act[0]:.3f}, {ci_act[1]:.3f}]')
@@ -150,7 +234,7 @@ class Results():
         return None
 
 
-    def plot_distribution(self, exclude: Optional[List]= ["escort", "business_trip", "errands_services"], block_size: float = 5/60, figure_size: List = [7,4], save_fig: Optional[str] = 'png')-> None:
+    def plot_distribution(self, exclude: Optional[List]= ["escort", "business_trip", "errands_services"], block_size: float = 5/60, days: Optional[List] = None, figure_size: List = [7,4], save_fig: Optional[str] = 'png')-> None:
         """
         Plots aggregate time of  day distribution.
 
@@ -158,6 +242,7 @@ class Results():
         ---------------
         - exclude: list of activities to exclude from the visualization
         - block_size: size of the discretization in hours. Default: 5/60 hours.
+        - days: list of days of interest for the aggregation (only defined in the multiday case)
         - figure_size: size of figure
         - save_fig: xport format (png/pdf/svg) as string. if None, the figure is not saved.
 
@@ -167,8 +252,18 @@ class Results():
         """
 
         disc_list = []
+        all_solutions = []
 
-        for s in self.solutions:
+        if self.multiday:
+            if not days:
+                days  = self.day_index #aggregate all days to plot the distributions
+
+            all_solutions = [day_sol for solution in self.solutions for i, day_sol in enumerate(solution) if self.day_index[i] in days]
+
+        else:
+            all_solutions = self.solutions
+
+        for i,s in enumerate(all_solutions):
 
             s['act_label'] = s.label.apply(lambda x: x.rstrip('0123456789') if x not in ['dawn', 'dusk'] else 'home')
             list_act = [x for x in s.act_label.unique() if x not in exclude]
@@ -213,7 +308,16 @@ class Results():
         ax.set_xlim([0, 25])
         ax.set_ylim([0, 1])
 
-        plt.title("Time of day distribution", fontsize = 12)
+        title = "Time of day distribution"
+
+        if days:
+            if len(days) > 1:
+                con = "and" if len(days) == 2 else "to"
+                title = f'Time of day distribution, ({self.day_names[min(days)]} {con} {self.day_names[max(days)]})'
+            else:
+                title = f'Time of day distribution, ({self.day_names[min(days)]})'
+
+        plt.title(title, fontsize = 12)
 
         if save_fig:
             filename = f'time_of_day_dist.{save_fig}'

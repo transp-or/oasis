@@ -39,6 +39,11 @@ class ActivityData():
     - feasible_end: feasible end time in hours
     - desired_start: desired start time in hours
     - desired_duration: desired duration in hours
+    - desired_start_weekdays: desired start time in hours (weekdays) - only defined for multiday simulation
+    - desired_duration_weekdays: desired duration in hours (weekdays)- only defined for multiday simulation
+    - desired_start_weekdays: desired start time in hours (weekends)- only defined for multiday simulation
+    - desired_duration_weekdays: desired duration in hours (weekends)- only defined for multiday simulation
+    - desired_frequency: desired activity frequency per week - only defined for multiday simulation
     - act_id: ID of the activity, should either be an integer or a dictionary mapping the activity type to an integer ID.
     - data: structure keeping the data. Can be a dictionary, a dataframe or a valid JSON string.
 
@@ -51,7 +56,10 @@ class ActivityData():
     """
     def __init__(self, label: Optional[str]= None,  group: Optional[str]= None,location: Optional[Tuple]= None, mode: Optional[str]= None,
     activity_parameters: Optional[Dict]= None, feasible_start: Optional[float] = None, feasible_end: Optional[float] = None,
-    desired_start: Optional[float] = None, desired_duration: Optional[float] = None, act_id: Union[int, Dict, None] = None, data: Union[Dict, pd.DataFrame, str, None] = None, *args, **kwargs):
+    desired_start: Optional[float] = None, desired_duration: Optional[float] = None, desired_start_weekday: Optional[float] = None, desired_duration_weekday: Optional[float] = None,
+    desired_start_weekend: Optional[float] = None, desired_duration_weekend: Optional[float] = None,
+    act_id: Union[int, Dict, None] = None, desired_frequency: Optional[float] = None, data: Union[Dict, pd.DataFrame, str, None] = None,
+    *args, **kwargs):
 
         if data is not None:
             if isinstance(data, pd.Series) or isinstance(data, pd.DataFrame):
@@ -74,6 +82,13 @@ class ActivityData():
             self.feasible_end = feasible_end if feasible_end else 24
             self.desired_start = desired_start if desired_start else 0
             self.desired_duration = desired_duration if desired_duration else 0
+
+            #multiday attributes
+            self.desired_start_weekday = desired_start_weekday if desired_start_weekday else self.desired_start
+            self.desired_duration_weekday = desired_duration_weekday if desired_duration_weekday else self.desired_duration
+            self.desired_start_weekend = desired_start_weekend if desired_start_weekend else self.desired_start
+            self.desired_duration_weekend = desired_duration_weekend if desired_duration_weekend else self.desired_duration
+            self.desired_frequency = desired_frequency
 
             self.type = self.group if self.group not in ['dawn', 'dusk'] else 'home'
 
@@ -103,8 +118,13 @@ class ActivityData():
         self.feasible_end = df.feasible_end if 'feasible_end' in df else 24
         self.desired_start = df.desired_start if 'desired_start' in df else 0
         self.desired_duration = df.desired_duration if 'desired_duration' in df else 0
+        self.desired_start_weekday = df.desired_start_weekday if 'desired_start_weekday' in df else self.desired_start
+        self.desired_duration_weekday = df.desired_duration_weekday if 'desired_duration_weekday' in df else self.desired_duration
+        self.desired_start_weekend = df.desired_start_weekend if 'desired_start_weekend' in df else self.desired_start
+        self.desired_duration_weekend = df.desired_duration_weekend if 'desired_duration_weekend' in df else self.desired_duration
         self.type = self.group if self.group not in ['dawn', 'dusk'] else 'home'
         self.activity_parameters = params[self.type] if params else None
+        self.desired_frequency = df.desired_frequency if 'desired_frequency' in df else None
         self.act_id =df.act_id
 
 
@@ -125,9 +145,15 @@ class ActivityData():
         self.feasible_end = dic['feasible_end'] if 'feasible_end' in dic.keys() else 24
         self.desired_start = dic['desired_start'] if 'desired_start' in dic.keys() else 0
         self.desired_duration = dic['desired_duration'] if 'desired_duration' in dic.keys() else 0
+        self.desired_start_weekday = dic['desired_start_weekday'] if 'desired_start_weekday' in dic.keys() else self.desired_start
+        self.desired_duration_weekday =dic['desired_duration_weekday'] if 'desired_duration_weekday' in dic.keys() else self.desired_duration
+        self.desired_start_weekend = dic['desired_start_weekend'] if 'desired_start_weekend' in dic.keys() else self.desired_start
+        self.desired_duration_weekend = dic['desired_duration_weekend'] if 'desired_duration_weekend' in dic.keys() else self.desired_duration
         self.type = self.group if self.group not in ['dawn', 'dusk'] else 'home'
         self.activity_parameters = params[self.type] if params else None
+        self.desired_frequency = dic['desired_frequency'] if 'desired_frequency' in dic.keys() else None
         self.act_id =dic['act_id']
+
 
 
     def add_parameters(self, params: Dict) -> None:
