@@ -1,4 +1,4 @@
-cplex==22.1.1.0
+cplex==22.1.1.1
 docplex==2.25.236
 joblib==1.2.0
 json5==0.9.6
