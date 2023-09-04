@@ -1,5 +1,7 @@
 # OASIS v1.0.0
 
+[![DOI](https://zenodo.org/badge/685457042.svg)](https://zenodo.org/badge/latestdoi/685457042)
+
 ## Description
 
 This is a stable version of the OASIS activity-based framework. This repository includes the simulation code, based on the Python API of the CPLEX solver.
@@ -20,4 +22,6 @@ An example of how to run the simulator is provided in the ``demo`` notebooks. Yo
 
 If you found this repository useful, you can acknowledge the authors by citing:
 
-* Pougala J., Hillel T., Bierlaire M. (2022). OASIS: Optimisation-based Activity Scheduling with Integrated Simultaneous choice dimensions. Report TRANSP-OR 221124
+* Pougala, J., Hillel, T., and Bierlaire M. (2023) *OASIS: Optimisation-based Activity Scheduling with Integrated Simultaneous choice dimensions*, Transportation Research Part C: Emerging Technologies, vol. 155, p. 104291, DOI: [https://doi.org/10.1016/j.trc.2023.104291](https://doi.org/10.1016/j.trc.2023.104291)
+
+
