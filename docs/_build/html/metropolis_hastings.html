@@ -1,0 +1,229 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>metropolis_hastings module &#8212; OASIS 1.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="operators module" href="operators.html" />
+    <link rel="prev" title="input_data module" href="input_data.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="module-metropolis_hastings">
+<span id="metropolis-hastings-module"></span><h1>metropolis_hastings module<a class="headerlink" href="#module-metropolis_hastings" title="Permalink to this heading">¶</a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="metropolis_hastings.backward_probability">
+<span class="sig-prename descclassname"><span class="pre">metropolis_hastings.</span></span><span class="sig-name descname"><span class="pre">backward_probability</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">current_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="activity.html#activity.Schedule" title="activity.Schedule"><span class="pre">Schedule</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">proposal_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="activity.html#activity.Schedule" title="activity.Schedule"><span class="pre">Schedule</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">operator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="operators.html#operators.Operator" title="operators.Operator"><span class="pre">Operator</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/metropolis_hastings.html#backward_probability"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#metropolis_hastings.backward_probability" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns backward probability to go from state j (proposed state) to i (current state) within a given iteration.</p>
+<ul class="simple">
+<li><p>current_state: current schedule</p></li>
+<li><p>proposal_state: proposal schedule</p></li>
+<li><p>operator: object of class Operator</p></li>
+</ul>
+<ul class="simple">
+<li><p>Backward probability</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="metropolis_hastings.between_var">
+<span class="sig-prename descclassname"><span class="pre">metropolis_hastings.</span></span><span class="sig-name descname"><span class="pre">between_var</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sequences</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/metropolis_hastings.html#between_var"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#metropolis_hastings.between_var" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes variance of variable between sequences
+sequences: M x N list containing the N values of the variable of interest for the M sequences
+(N is 1/4 of the length of the sequence at the beginning of the MH process)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="metropolis_hastings.collect_distributions">
+<span class="sig-prename descclassname"><span class="pre">metropolis_hastings.</span></span><span class="sig-name descname"><span class="pre">collect_distributions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">accepted_sched</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activities</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude_home</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_fig</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/metropolis_hastings.html#collect_distributions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#metropolis_hastings.collect_distributions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Collects and plots the distributions of the resulting choice set for different metrics
+(start time, duration, activity participation).</p>
+<ul class="simple">
+<li><p>accepted sched: list of accepted schedules from the MH algorithm (final choice set)</p></li>
+<li><p>activities: list of activities for the collection of metrics. If none are passed, the metrics are computed</p></li>
+</ul>
+<p>for all activities
+- exclude_home: if True only collects info on out of home activities
+- plot: If True, returns plots
+- save_fig: export format (png/pdf/svg) as string. if None, the figure is not saved.
+- return_dict: if True, returns dictionary with statistics</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="metropolis_hastings.forward_probability">
+<span class="sig-prename descclassname"><span class="pre">metropolis_hastings.</span></span><span class="sig-name descname"><span class="pre">forward_probability</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">current_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="activity.html#activity.Schedule" title="activity.Schedule"><span class="pre">Schedule</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">proposal_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="activity.html#activity.Schedule" title="activity.Schedule"><span class="pre">Schedule</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">operator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="operators.html#operators.Operator" title="operators.Operator"><span class="pre">Operator</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/metropolis_hastings.html#forward_probability"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#metropolis_hastings.forward_probability" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns forward probability to go from state i (current state) to j (proposed state) within a given iteration.</p>
+<ul class="simple">
+<li><p>current_state: current schedule</p></li>
+<li><p>proposal_state: proposal schedule</p></li>
+<li><p>operator: object of class Operator</p></li>
+</ul>
+<ul class="simple">
+<li><p>Forward probability</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="metropolis_hastings.random_walk">
+<span class="sig-prename descclassname"><span class="pre">metropolis_hastings.</span></span><span class="sig-name descname"><span class="pre">random_walk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">init_sched</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="activity.html#activity.Schedule" title="activity.Schedule"><span class="pre">Schedule</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_iter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">operators</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_operators</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uniform</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnd_term</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Generator</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="activity.html#activity.Schedule" title="activity.Schedule"><span class="pre">Schedule</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="operators.html#operators.Operator" title="operators.Operator"><span class="pre">Operator</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/metropolis_hastings.html#random_walk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#metropolis_hastings.random_walk" title="Permalink to this definition">¶</a></dt>
+<dd><p>Random walk generator</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>init_sched</strong> (<em>-</em>) – </p></li>
+<li><p><strong>n_iter</strong> (<em>-</em>) – </p></li>
+<li><p><strong>p_operators</strong> (<em>-</em>) – </p></li>
+<li><p><strong>uniform</strong> (<em>-</em>) – </p></li>
+<li><p><strong>param_file</strong> (<em>-</em>) – </p></li>
+<li><p><strong>rnd_term</strong> (<em>-</em>) – </p></li>
+<li><p><strong>kwargs</strong> (<em>-</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Generator with current state, operator, and acceptance probability.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="metropolis_hastings.scale_reduction">
+<span class="sig-prename descclassname"><span class="pre">metropolis_hastings.</span></span><span class="sig-name descname"><span class="pre">scale_reduction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sequences</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/metropolis_hastings.html#scale_reduction"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#metropolis_hastings.scale_reduction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes scale reduction of given sequences</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="metropolis_hastings.target_weight">
+<span class="sig-prename descclassname"><span class="pre">metropolis_hastings.</span></span><span class="sig-name descname"><span class="pre">target_weight</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sched</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="activity.html#activity.Schedule" title="activity.Schedule"><span class="pre">Schedule</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">uniform</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnd_term</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/metropolis_hastings.html#target_weight"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#metropolis_hastings.target_weight" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes target weight for MH –&gt; utility of schedule from initial model estimated with simple random sampling</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>-sched</strong> (<em>Schedule object</em>) – </p></li>
+<li><p><strong>-uniform</strong> (<em>if True</em><em>, </em><em>returns constant weight</em>) – </p></li>
+<li><p><strong>-param_file</strong> (<em>file where to find parameters</em>) – </p></li>
+<li><p><strong>-rnd_term</strong> (<em>random term for the utility function</em>) – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="metropolis_hastings.within_var">
+<span class="sig-prename descclassname"><span class="pre">metropolis_hastings.</span></span><span class="sig-name descname"><span class="pre">within_var</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sequences</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/metropolis_hastings.html#within_var"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#metropolis_hastings.within_var" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes variance of variable within sequences
+sequences: M x N list containing the N values of the variable of interest for the M sequences
+(N is 1/4 of the length of the sequence at the beginning of the MH process)</p>
+</dd></dl>
+
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">OASIS</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">code</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="activity.html">activity module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="data_utils.html">data_utils module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="error_terms.html">error_terms module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="estimation.html">estimation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="helper_func.html">helper_func module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_data.html">input_data module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">metropolis_hastings module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="operators.html">operators module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="results.html">results module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="settings.html">settings module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simulation.html">simulation module</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">code</a><ul>
+      <li>Previous: <a href="input_data.html" title="previous chapter">input_data module</a></li>
+      <li>Next: <a href="operators.html" title="next chapter">operators module</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Janody Pougala.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/metropolis_hastings.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

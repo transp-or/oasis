@@ -1,0 +1,760 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>activity &#8212; OASIS 1.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for activity</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">groupby</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">matplotlib.patches</span> <span class="k">as</span> <span class="nn">mpatches</span>
+<span class="kn">from</span> <span class="nn">matplotlib.colors</span> <span class="kn">import</span> <span class="n">ListedColormap</span><span class="p">,</span> <span class="n">Normalize</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">settings</span> <span class="kn">import</span> <span class="n">DESIRED_TIMES</span>
+
+
+
+<span class="c1">#desired_times = desired_times_stud</span>
+
+<span class="c1"># def load_desired_times(pickle_file):</span>
+<span class="c1">#     &#39;&#39;&#39;Loads desired times from input pikle file&#39;&#39;&#39;</span>
+<span class="c1">#     desired_times = pickle.load(open(pickle_file, &#39;wb&#39;))</span>
+<span class="c1">#     return desired_times</span>
+
+
+<div class="viewcode-block" id="Activity"><a class="viewcode-back" href="../activity.html#activity.Activity">[docs]</a><span class="k">class</span> <span class="nc">Activity</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class creates an &quot;activity&quot; unit to be used in the estimation process. A list of activities constitutes a schedule.</span>
+<span class="sd">    Activity objects can be easily created with the ActivityFactory class.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">    -------------------</span>
+<span class="sd">    - label: unique label of the activity</span>
+<span class="sd">    - start_time: discrete start time (int)</span>
+<span class="sd">    - duration: discrete duration (int)</span>
+<span class="sd">    - end_time: discrete end time (int)</span>
+<span class="sd">    - mode : mode of transportation of the associated travel</span>
+<span class="sd">    - next_act: next activity in the schedule object</span>
+<span class="sd">    - prev_act: previous activity in the schedule object</span>
+<span class="sd">    - early: deviation from preferred start time (early)</span>
+<span class="sd">    - late: deviation from preferred start time (late)</span>
+<span class="sd">    - short: deviation from preferred duration (short)</span>
+<span class="sd">    - long: deviation from preferred duration (long)</span>
+<span class="sd">    - boundary_inf: lower bound for feasible start time</span>
+<span class="sd">    - boundary_sup: upper bound for feasible end travel_time</span>
+
+<span class="sd">    Methods:</span>
+<span class="sd">    ------------------</span>
+<span class="sd">    - Getters and setters for protected attributes</span>
+<span class="sd">    - compute_utility: computed utility function for activity</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span><span class="n">start_time</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">duration</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">end_time</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">location</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">prev_act</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">next_act</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">early</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">late</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">short</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">long</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_label</span> <span class="o">=</span> <span class="n">label</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span> <span class="o">=</span> <span class="n">start_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_duration</span> <span class="o">=</span> <span class="n">duration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span> <span class="o">=</span> <span class="n">end_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mode</span> <span class="o">=</span> <span class="n">mode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_location</span> <span class="o">=</span> <span class="n">location</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prev_act</span> <span class="o">=</span> <span class="n">prev_act</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_next_act</span> <span class="o">=</span> <span class="n">next_act</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">early</span> <span class="o">=</span> <span class="n">early</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">late</span> <span class="o">=</span> <span class="n">late</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">short</span> <span class="o">=</span> <span class="n">short</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">long</span> <span class="o">=</span> <span class="n">long</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_boundary_inf</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="s2">&quot;home&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_boundary_sup</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="s2">&quot;home&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span> <span class="o">==</span> <span class="p">(</span><span class="mi">24</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">duration</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_boundary_inf</span> <span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_prev_act</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_prev_act</span> <span class="o">=</span> <span class="n">prev_act</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_boundary_sup</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_next_act</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_next_act</span> <span class="o">=</span> <span class="n">next_act</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_duration</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;home&#39;</span><span class="p">,</span> <span class="s1">&#39;dawn&#39;</span><span class="p">,</span> <span class="s1">&#39;dusk&#39;</span><span class="p">]:</span>
+            <span class="n">st_diff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span> <span class="o">-</span> <span class="n">DESIRED_TIMES</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_label</span><span class="p">][</span><span class="s1">&#39;desired_start_time&#39;</span><span class="p">]</span>
+            <span class="n">d_diff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_duration</span> <span class="o">-</span> <span class="n">DESIRED_TIMES</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_label</span><span class="p">][</span><span class="s1">&#39;desired_duration&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">st_diff</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">d_diff</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="n">early</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">early</span> <span class="o">=</span> <span class="p">((</span><span class="n">st_diff</span><span class="o">&gt;=-</span><span class="mi">12</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">st_diff</span><span class="o">&lt;=</span><span class="mi">0</span><span class="p">))</span><span class="o">*</span><span class="p">(</span><span class="o">-</span><span class="n">st_diff</span><span class="p">)</span> <span class="o">+</span> <span class="p">((</span><span class="n">st_diff</span><span class="o">&gt;=</span><span class="mi">12</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">st_diff</span><span class="o">&lt;=</span><span class="mi">24</span><span class="p">))</span><span class="o">*</span><span class="p">(</span><span class="mi">24</span><span class="o">-</span><span class="n">st_diff</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">late</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">late</span> <span class="o">=</span> <span class="p">((</span><span class="n">st_diff</span><span class="o">&gt;=</span><span class="mi">0</span><span class="p">)</span><span class="o">&amp;</span><span class="p">(</span><span class="n">st_diff</span><span class="o">&lt;</span><span class="mi">12</span><span class="p">))</span><span class="o">*</span><span class="p">(</span><span class="n">st_diff</span><span class="p">)</span> <span class="o">+</span> <span class="p">((</span><span class="n">st_diff</span><span class="o">&gt;=-</span><span class="mi">24</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">st_diff</span><span class="o">&lt;-</span><span class="mi">12</span><span class="p">))</span><span class="o">*</span><span class="p">(</span><span class="mi">24</span><span class="o">+</span><span class="n">st_diff</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">long</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">long</span> <span class="o">=</span> <span class="p">(</span><span class="n">d_diff</span><span class="o">&gt;=</span><span class="mi">0</span><span class="p">)</span><span class="o">*</span><span class="n">d_diff</span>
+
+        <span class="k">if</span> <span class="n">short</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">short</span> <span class="o">=</span> <span class="p">(</span><span class="n">d_diff</span><span class="o">&lt;=</span><span class="mi">0</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="o">-</span><span class="n">d_diff</span><span class="p">)</span>
+
+
+
+    <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">othr</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">othr</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">duration</span><span class="p">)</span> <span class="o">==</span>
+                        <span class="p">(</span><span class="n">othr</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">othr</span><span class="o">.</span><span class="n">start_time</span><span class="p">,</span> <span class="n">othr</span><span class="o">.</span><span class="n">duration</span><span class="p">)</span> <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">hash</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">duration</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s2">: start time </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="si">}</span><span class="s2">, duration </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">duration</span><span class="si">}</span><span class="s2"> h, location </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="si">}</span><span class="s2">&quot;</span>
+
+
+    <span class="c1">#Getters and setters for protected attributes</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label</span>
+
+    <span class="nd">@label</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lab</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_label</span> <span class="o">=</span> <span class="n">lab</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">duration</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_duration</span>
+
+    <span class="nd">@duration</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">duration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dur</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_duration</span> <span class="o">=</span> <span class="n">dur</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">start_time</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span>
+
+    <span class="nd">@start_time</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">start_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">st</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span> <span class="o">=</span> <span class="n">st</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">end_time</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span>
+
+    <span class="nd">@end_time</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">end_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">et</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span> <span class="o">=</span> <span class="n">et</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">mode</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mode</span>
+
+    <span class="nd">@mode</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">mode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mode</span> <span class="o">=</span> <span class="n">m</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">location</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_location</span>
+
+    <span class="nd">@location</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">location</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">loc</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_location</span> <span class="o">=</span> <span class="n">loc</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">prev_act</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prev_act</span>
+
+    <span class="nd">@prev_act</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">prev_act</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">act</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_boundary_inf</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_prev_act</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_prev_act</span> <span class="o">=</span> <span class="n">act</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">next_act</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_next_act</span>
+    <span class="nd">@next_act</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">next_act</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">act</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_boundary_sup</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_next_act</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_next_act</span> <span class="o">=</span> <span class="n">act</span>
+
+<div class="viewcode-block" id="Activity.compute_utility"><a class="viewcode-back" href="../activity.html#activity.Activity.compute_utility">[docs]</a>    <span class="k">def</span> <span class="nf">compute_utility</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">reference_act</span><span class="p">:</span> <span class="n">List</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;home&#39;</span><span class="p">,</span> <span class="s1">&#39;dawn&#39;</span><span class="p">,</span> <span class="s1">&#39;dusk&#39;</span><span class="p">]):</span>
+
+        <span class="sd">&quot;&quot;&quot;Computes the activity-specific utility function.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        params: Dictionary of parameters to be used in the utility function</span>
+<span class="sd">        reference_act: List of label(s) of the reference activity (default is home)</span>
+
+<span class="sd">        Return</span>
+<span class="sd">        ----------</span>
+<span class="sd">        V: value of the utility function</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+
+        <span class="n">at</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span>
+
+        <span class="n">flexibility_lookup</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;education&#39;</span><span class="p">:</span> <span class="s1">&#39;NF&#39;</span><span class="p">,</span><span class="s1">&#39;work&#39;</span><span class="p">:</span> <span class="s1">&#39;NF&#39;</span><span class="p">,</span><span class="s1">&#39;errands_services&#39;</span><span class="p">:</span> <span class="s1">&#39;F&#39;</span><span class="p">,</span><span class="s1">&#39;escort&#39;</span><span class="p">:</span> <span class="s1">&#39;NF&#39;</span><span class="p">,</span><span class="s1">&#39;leisure&#39;</span><span class="p">:</span> <span class="s1">&#39;F&#39;</span><span class="p">,</span><span class="s1">&#39;shopping&#39;</span><span class="p">:</span> <span class="s1">&#39;F&#39;</span><span class="p">,</span> <span class="s1">&#39;home&#39;</span><span class="p">:</span> <span class="s1">&#39;F&#39;</span><span class="p">,</span> <span class="s1">&#39;business_trip&#39;</span><span class="p">:</span> <span class="s1">&#39;NF&#39;</span><span class="p">}</span>
+
+        <span class="n">early</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">early</span>
+        <span class="n">late</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">late</span>
+        <span class="n">short</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">short</span>
+        <span class="n">long</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">long</span>
+
+        <span class="n">V</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">at</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">reference_act</span><span class="p">:</span>
+
+            <span class="k">if</span> <span class="n">at</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;business_trip&quot;</span><span class="p">,</span> <span class="s2">&quot;escort&quot;</span><span class="p">,</span> <span class="s2">&quot;errands_services&quot;</span><span class="p">]:</span>
+                <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">at</span><span class="si">}</span><span class="s2">:constant&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+
+            <span class="n">fd</span> <span class="o">=</span> <span class="n">flexibility_lookup</span><span class="p">[</span><span class="n">at</span><span class="p">]</span>
+            <span class="n">V</span> <span class="o">+=</span> <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">at</span><span class="si">}</span><span class="s2">:constant&quot;</span><span class="p">]</span>  <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">fd</span><span class="si">}</span><span class="s1">:early&#39;</span><span class="p">]</span><span class="o">*</span> <span class="n">early</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">fd</span><span class="si">}</span><span class="s1">:late&#39;</span><span class="p">]</span><span class="o">*</span> <span class="n">late</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">fd</span><span class="si">}</span><span class="s1">:short&#39;</span><span class="p">]</span><span class="o">*</span> <span class="n">short</span> \
+            <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">fd</span><span class="si">}</span><span class="s1">:long&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">long</span>
+
+        <span class="k">return</span> <span class="n">V</span></div></div>
+
+
+<div class="viewcode-block" id="Travel"><a class="viewcode-back" href="../activity.html#activity.Travel">[docs]</a><span class="k">class</span> <span class="nc">Travel</span><span class="p">(</span><span class="n">Activity</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class defines the specific Travel activity.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;Travel&quot;</span><span class="p">,</span> <span class="n">location</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Travel from </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">prev_act</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s2"> (location: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">prev_act</span><span class="o">.</span><span class="n">location</span><span class="si">}</span><span class="s2">) to </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">next_act</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s2"> (location: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">next_act</span><span class="o">.</span><span class="n">location</span><span class="si">}</span><span class="s2">), by </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="si">}</span><span class="s2">.</span><span class="se">\n</span><span class="s2"> Travel time: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">duration</span><span class="si">}</span><span class="s2">&quot;</span></div>
+
+
+<div class="viewcode-block" id="ActivityFactory"><a class="viewcode-back" href="../activity.html#activity.ActivityFactory">[docs]</a><span class="k">class</span> <span class="nc">ActivityFactory</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class creates and Activity object.</span>
+
+<span class="sd">    Methods:</span>
+<span class="sd">    -------------------</span>
+<span class="sd">    - create: creates object from Activity class</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+<div class="viewcode-block" id="ActivityFactory.create"><a class="viewcode-back" href="../activity.html#activity.ActivityFactory.create">[docs]</a>    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">random</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">list_act</span><span class="p">:</span> <span class="n">List</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;home&quot;</span><span class="p">,</span><span class="s2">&quot;work&quot;</span><span class="p">,</span><span class="s2">&quot;education&quot;</span><span class="p">,</span><span class="s2">&quot;shopping&quot;</span><span class="p">,</span><span class="s2">&quot;errands_services&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;leisure&quot;</span><span class="p">,</span><span class="s2">&quot;escort&quot;</span><span class="p">,</span> <span class="s2">&quot;business_trip&quot;</span><span class="p">],</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Activity</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates an object from the Activity class.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        -label: label of the activity to create</span>
+<span class="sd">        -random: if True, creates a random activity</span>
+<span class="sd">        -list_act: list of possible activity labels</span>
+<span class="sd">        -**kwargs: other keywords arguments that will be passed to the Activity constructor.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">label</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">random</span> <span class="o">==</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No activity label was passed.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">random</span><span class="p">:</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">list_act</span><span class="p">)</span>
+
+        <span class="n">new_act</span> <span class="o">=</span> <span class="n">Activity</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">new_act</span></div></div>
+
+<div class="viewcode-block" id="Schedule"><a class="viewcode-back" href="../activity.html#activity.Schedule">[docs]</a><span class="k">class</span> <span class="nc">Schedule</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class stores schedules of activity objects.</span>
+
+
+<span class="sd">    Attributes:</span>
+<span class="sd">    -----------------</span>
+<span class="sd">    -list_act: list of Activity objects representing the activities in the schedule</span>
+<span class="sd">    -total_dur: total schedule duration, default is 24h</span>
+<span class="sd">    -start: start time of the schedule (default: Oh - midnight)</span>
+<span class="sd">    -end: end time of the schedule (default: 24h )</span>
+<span class="sd">    -discretization: schedule discretization in hours, default: 1/60 h</span>
+<span class="sd">    -feasibility: boolean that indicates if the schedule is feasible</span>
+<span class="sd">    -travel_time_mat: matrix of travel times</span>
+<span class="sd">    -anchor_nodes: time points in the schedule where operators changes will be applied. Default: at every hour for empty schedules</span>
+<span class="sd">    -all_starts: list of the start times of every activity in the schedule</span>
+<span class="sd">    -all_locations: list of the locations of every activity in the schedule</span>
+<span class="sd">    -all_labels: list of the labels of every activity in the schedule</span>
+<span class="sd">    -list_modes: list of the possible modes of transportation</span>
+
+
+<span class="sd">    Methods:</span>
+<span class="sd">    -----------------</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">list_act</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">total_dur</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">end</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">discretization</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mi">1</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span> <span class="n">travel_time_mat</span><span class="p">:</span><span class="n">Dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span><span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_list_act</span> <span class="o">=</span> <span class="n">list_act</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total_dur</span> <span class="o">=</span> <span class="n">total_dur</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start</span> <span class="o">=</span> <span class="n">start</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_end</span> <span class="o">=</span> <span class="n">end</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_discretization</span> <span class="o">=</span> <span class="n">discretization</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_feasibility</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_travel_time_mat</span> <span class="o">=</span> <span class="n">travel_time_mat</span>
+
+        <span class="k">if</span> <span class="n">list_act</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_act</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">2</span><span class="p">:</span> <span class="c1">#set the anchor nodes to the start times of the existing activities, excluding the first and last one (boundary at home which cannot be changed)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_anchor_nodes</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">start_time</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">list_act</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c1">#if no activity has been passed the anchors are initialized at every hour</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_anchor_nodes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_starts</span> <span class="o">=</span> <span class="p">[</span><span class="n">act</span><span class="o">.</span><span class="n">start_time</span> <span class="k">for</span> <span class="n">act</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_ends</span> <span class="o">=</span> <span class="p">[</span><span class="n">act</span><span class="o">.</span><span class="n">end_time</span> <span class="k">for</span> <span class="n">act</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_locations</span> <span class="o">=</span> <span class="p">[</span><span class="n">act</span><span class="o">.</span><span class="n">location</span> <span class="k">for</span> <span class="n">act</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">act</span><span class="o">.</span><span class="n">label</span> <span class="k">for</span> <span class="n">act</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">list_modes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;driving&quot;</span><span class="p">,</span><span class="s2">&quot;pt&quot;</span><span class="p">,</span><span class="s2">&quot;cycling&quot;</span><span class="p">]</span>
+
+
+
+    <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">othr</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">othr</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+                <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_starts</span><span class="p">)</span> <span class="o">==</span>
+                    <span class="p">(</span><span class="n">othr</span><span class="o">.</span><span class="n">list_act</span><span class="p">,</span> <span class="n">othr</span><span class="o">.</span><span class="n">all_starts</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="fm">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">((</span><span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">all_starts</span><span class="p">)))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">list_act</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_list_act</span>
+
+    <span class="nd">@list_act</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">list_act</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">l_a</span><span class="p">:</span> <span class="n">List</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_list_act</span> <span class="o">=</span> <span class="n">l_a</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">total_dur</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_total_dur</span>
+
+    <span class="nd">@total_dur</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">total_dur</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dur</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total_dur</span> <span class="o">=</span> <span class="n">dur</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start</span>
+
+    <span class="nd">@start</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">st</span><span class="p">:</span><span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span><span class="nb">int</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start</span> <span class="o">=</span> <span class="n">st</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">end</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span>
+
+    <span class="nd">@end</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">et</span><span class="p">:</span><span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span><span class="nb">int</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_end</span> <span class="o">=</span> <span class="n">et</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">discretization</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_discretization</span>
+
+    <span class="nd">@discretization</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">discretization</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">discret</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_discretization</span> <span class="o">=</span> <span class="n">discret</span>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">feasibility</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_feasibility</span>
+
+    <span class="nd">@feasibility</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">feasibility</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="nb">bool</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_feasibility</span> <span class="o">=</span> <span class="n">status</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">travel_time_mat</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_travel_time_mat</span>
+
+    <span class="nd">@travel_time_mat</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">travel_time_mat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tt_mat</span><span class="p">:</span> <span class="n">Dict</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_travel_time_mat</span> <span class="o">=</span> <span class="n">tt_mat</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">anchor_nodes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_anchor_nodes</span>
+
+    <span class="nd">@anchor_nodes</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">anchor_nodes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">nodes</span><span class="p">:</span> <span class="n">List</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_anchor_nodes</span> <span class="o">=</span> <span class="n">nodes</span>
+
+
+<div class="viewcode-block" id="Schedule.get_travel_time"><a class="viewcode-back" href="../activity.html#activity.Schedule.get_travel_time">[docs]</a>    <span class="k">def</span> <span class="nf">get_travel_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">origin</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">,</span><span class="nb">str</span><span class="p">,</span><span class="nb">int</span><span class="p">],</span> <span class="n">destination</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">,</span><span class="nb">str</span><span class="p">,</span><span class="nb">int</span><span class="p">],</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">float</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract OD travel time.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        origin: ID of the origin (must be a valid key in the travel time matrix)</span>
+<span class="sd">        destination: ID of the destination (must be a valid key in the travel time matrix)</span>
+<span class="sd">        mode: mode of transportation (must be a valid key in the travel time matrix)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        --------------</span>
+<span class="sd">        tt: travel time in hours</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="kc">None</span> <span class="ow">in</span> <span class="p">[</span><span class="n">origin</span><span class="p">,</span> <span class="n">destination</span><span class="p">,</span> <span class="n">mode</span><span class="p">])</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">travel_time_mat</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="c1">#!-----change this if you want another behaviour for missing values (here it&#39;s setting the TT to 0)---!</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">tt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">travel_time_mat</span><span class="p">[</span><span class="n">mode</span><span class="p">][</span><span class="n">origin</span><span class="p">][</span><span class="n">destination</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="c1">#!-----change this if you want another behaviour for missing values (here it&#39;s setting the TT to 0)---!</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Couldnt compute travel time. Setting to 0.&#39;</span><span class="p">)</span>
+            <span class="n">tt</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">return</span> <span class="n">tt</span></div>
+
+<div class="viewcode-block" id="Schedule.get_home_location"><a class="viewcode-back" href="../activity.html#activity.Schedule.get_home_location">[docs]</a>    <span class="k">def</span> <span class="nf">get_home_location</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the location identified as home.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">location</span></div>
+
+<div class="viewcode-block" id="Schedule.update"><a class="viewcode-back" href="../activity.html#activity.Schedule.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Updates variables when the activities change.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_starts</span> <span class="o">=</span> <span class="p">[</span><span class="n">act</span><span class="o">.</span><span class="n">start_time</span> <span class="k">for</span> <span class="n">act</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_ends</span> <span class="o">=</span> <span class="p">[</span><span class="n">act</span><span class="o">.</span><span class="n">end_time</span> <span class="k">for</span> <span class="n">act</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_locations</span> <span class="o">=</span> <span class="p">[</span><span class="n">act</span><span class="o">.</span><span class="n">location</span> <span class="k">for</span> <span class="n">act</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">act</span><span class="o">.</span><span class="n">label</span> <span class="k">for</span> <span class="n">act</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="Schedule.streamline"><a class="viewcode-back" href="../activity.html#activity.Schedule.streamline">[docs]</a>    <span class="k">def</span> <span class="nf">streamline</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;This function checks that the schedule is valid in terms of continuity (e.g. no gaps in time or space)&quot;&quot;&quot;</span>
+
+        <span class="n">sched_to_update</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span> <span class="k">if</span> <span class="n">x</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sched_to_update</span><span class="p">:</span>
+            <span class="c1">#empty list - set all at home</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span> <span class="o">=</span> <span class="p">[</span><span class="n">Activity</span><span class="p">(</span><span class="s2">&quot;home&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="n">location</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_home_location</span><span class="p">(),</span> <span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;driving&#39;</span><span class="p">)]</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="c1">#Sort by start time</span>
+        <span class="n">sched_to_update</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">start_time</span><span class="p">)</span>
+
+        <span class="c1">#Check boundary conditions (start and end at home)</span>
+        <span class="k">if</span> <span class="n">sched_to_update</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">label</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;home&#39;</span><span class="p">,</span> <span class="s1">&#39;dawn&#39;</span><span class="p">]:</span>
+            <span class="n">current_start</span> <span class="o">=</span> <span class="n">sched_to_update</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start_time</span> <span class="c1">#current start of the schedule</span>
+            <span class="n">sched_to_update</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">Activity</span><span class="p">(</span><span class="s1">&#39;home&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">current_start</span><span class="p">,</span> <span class="n">location</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_home_location</span><span class="p">(),</span> <span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;driving&#39;</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">sched_to_update</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">label</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;home&#39;</span><span class="p">,</span> <span class="s1">&#39;dusk&#39;</span><span class="p">]:</span>
+            <span class="n">current_end</span> <span class="o">=</span> <span class="n">sched_to_update</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">end_time</span><span class="c1">#current_end</span>
+            <span class="n">sched_to_update</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Activity</span><span class="p">(</span><span class="s1">&#39;home&#39;</span><span class="p">,</span> <span class="n">current_end</span><span class="p">,</span> <span class="mi">24</span><span class="o">-</span><span class="n">current_end</span><span class="p">,</span> <span class="n">location</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_home_location</span><span class="p">(),</span> <span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;driving&#39;</span><span class="p">))</span>
+
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">a</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sched_to_update</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="c1">#Check that the start time matches the end time of the previous activity + travel time</span>
+            <span class="n">prev_act</span> <span class="o">=</span> <span class="n">sched_to_update</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">tt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_travel_time</span><span class="p">(</span><span class="n">prev_act</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">prev_act</span><span class="o">.</span><span class="n">mode</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Couldn&#39;t find location. Travel Time matrix: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">travel_time_mat</span><span class="p">[</span><span class="n">prev_act</span><span class="o">.</span><span class="n">mode</span><span class="p">]</span><span class="si">}</span><span class="s2"> </span><span class="se">\n</span><span class="s2"> Locations: </span><span class="si">{</span><span class="n">prev_act</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">prev_act</span><span class="o">.</span><span class="n">mode</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">tt</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="k">if</span> <span class="n">a</span><span class="o">.</span><span class="n">start_time</span> <span class="o">!=</span> <span class="p">(</span><span class="n">prev_act</span><span class="o">.</span><span class="n">end_time</span> <span class="o">+</span> <span class="n">tt</span><span class="p">):</span>
+                <span class="n">a</span><span class="o">.</span><span class="n">start_time</span> <span class="o">=</span> <span class="n">prev_act</span><span class="o">.</span><span class="n">end_time</span> <span class="o">+</span> <span class="n">tt</span>
+
+            <span class="c1">#Put back updated activity in schedule</span>
+            <span class="n">sched_to_update</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">a</span>
+
+        <span class="c1">#Define boundary times</span>
+        <span class="n">sched_to_update</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span>
+        <span class="n">sched_to_update</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">end_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span>
+
+        <span class="c1">#Combine consecutive duplicates of activities</span>
+        <span class="n">grouped_labels</span> <span class="o">=</span> <span class="n">groupby</span><span class="p">(</span><span class="n">sched_to_update</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+        <span class="n">new_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">grouped_labels</span><span class="p">:</span>
+            <span class="n">group</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
+            <span class="n">new_act</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">new_act</span><span class="o">.</span><span class="n">end_time</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">end_time</span>
+            <span class="n">new_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_act</span><span class="p">)</span>
+
+        <span class="n">sched_to_update</span> <span class="o">=</span> <span class="n">new_list</span>
+
+        <span class="c1">#Fix durations and drop invalid ones (no or negative duration)</span>
+        <span class="n">to_drop</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">a</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sched_to_update</span><span class="p">):</span>
+            <span class="c1">#check durations</span>
+            <span class="c1">#prev_act = sched_to_update[i-1]</span>
+            <span class="n">duration</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">end_time</span> <span class="o">-</span> <span class="n">a</span><span class="o">.</span><span class="n">start_time</span>
+
+            <span class="k">if</span> <span class="n">duration</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">a</span><span class="o">.</span><span class="n">duration</span> <span class="o">=</span> <span class="n">duration</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">to_drop</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+            <span class="c1">#Put back updated activity in schedule</span>
+            <span class="n">sched_to_update</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">a</span>
+
+        <span class="c1">#Drop invalid activities</span>
+        <span class="n">updated_sched</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sched_to_update</span><span class="p">)</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">to_drop</span><span class="p">]</span>
+
+
+        <span class="c1">#Set updated schedule as attribute</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span> <span class="o">=</span> <span class="n">updated_sched</span>
+
+        <span class="c1">#Delete variables from namespace</span>
+        <span class="k">del</span> <span class="n">sched_to_update</span><span class="p">,</span> <span class="n">updated_sched</span><span class="p">,</span> <span class="n">new_list</span><span class="p">,</span> <span class="n">to_drop</span></div>
+
+
+<div class="viewcode-block" id="Schedule.compute_utility"><a class="viewcode-back" href="../activity.html#activity.Schedule.compute_utility">[docs]</a>    <span class="k">def</span> <span class="nf">compute_utility</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span><span class="n">Dict</span><span class="p">,</span> <span class="n">rnd_term</span><span class="p">:</span><span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span><span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Computes utility of full schedule, given utility parameters</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        params: Dictionary of utility parameters</span>
+<span class="sd">        rnd_term:random term to add to the utility function</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        utility: utility function of the schedule</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">rnd_term</span><span class="p">:</span>
+            <span class="c1">#Draw an EV distributed error term</span>
+            <span class="n">rnd_term</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">gumbel</span><span class="p">()</span>
+
+        <span class="n">list_act</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span>
+
+        <span class="c1">#Compute all travel times</span>
+        <span class="n">travel_times</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">list_act</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">origin</span> <span class="o">=</span> <span class="n">list_act</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">location</span>
+            <span class="n">destination</span> <span class="o">=</span> <span class="n">list_act</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">location</span>
+            <span class="n">mode</span> <span class="o">=</span> <span class="n">list_act</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mode</span>
+            <span class="n">travel_times</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_travel_time</span><span class="p">(</span><span class="n">origin</span><span class="p">,</span> <span class="n">destination</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+
+        <span class="n">utility</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="n">a</span><span class="o">.</span><span class="n">compute_utility</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">list_act</span><span class="p">])</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;travel_time&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">travel_times</span> <span class="o">+</span> <span class="n">rnd_term</span>
+
+        <span class="k">return</span> <span class="n">utility</span></div>
+
+<div class="viewcode-block" id="Schedule.which_activity"><a class="viewcode-back" href="../activity.html#activity.Schedule.which_activity">[docs]</a>    <span class="k">def</span> <span class="nf">which_activity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time</span><span class="p">:</span><span class="nb">float</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">Activity</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns activity that is happening at a given time</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">start_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">all_starts</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s1">&#39;right&#39;</span><span class="p">)</span>
+        <span class="n">activity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">[</span><span class="n">start_idx</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">activity</span></div>
+
+<div class="viewcode-block" id="Schedule.output"><a class="viewcode-back" href="../activity.html#activity.Schedule.output">[docs]</a>    <span class="k">def</span> <span class="nf">output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plot</span><span class="p">:</span><span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method creates a formatted pandas DataFrame of the schedule.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        plot: if True, plots schedule</span>
+<span class="sd">        **kwargs: keyword arguments to be passed to the plotting function</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        df: DataFrame</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cols</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;activity&#39;</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;end&#39;</span><span class="p">,</span> <span class="s1">&#39;duration&#39;</span><span class="p">]</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span> <span class="o">=</span> <span class="n">cols</span><span class="p">)</span>
+
+        <span class="n">df</span><span class="o">.</span><span class="n">activity</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">x</span><span class="o">.</span><span class="n">label</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">])</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">x</span><span class="o">.</span><span class="n">start_time</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">])</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">x</span><span class="o">.</span><span class="n">end_time</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">])</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">duration</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">x</span><span class="o">.</span><span class="n">duration</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">plot</span><span class="p">:</span>
+            <span class="n">pl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">df</span><span class="p">,</span> <span class="n">pl</span>
+
+        <span class="k">return</span> <span class="n">df</span></div>
+
+<div class="viewcode-block" id="Schedule.plot"><a class="viewcode-back" href="../activity.html#activity.Schedule.plot">[docs]</a>    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">list_act</span><span class="p">:</span> <span class="n">List</span> <span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">figure_size</span><span class="p">:</span> <span class="n">List</span> <span class="o">=</span> <span class="p">[</span><span class="mi">20</span><span class="p">,</span><span class="mi">3</span><span class="p">],</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plots given schedule.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        ---------------</span>
+<span class="sd">        -list_act: Default list of activities (for activity colors)</span>
+<span class="sd">        - title: plot title</span>
+<span class="sd">        - figure_size: size of the matplotlib figure</span>
+<span class="sd">        - kwargs: other keyword arguments for matplotlib&#39;s functions</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">colors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">activity_colors</span><span class="p">(</span><span class="n">list_act</span><span class="p">)</span>
+
+
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figure_size</span><span class="p">)</span>
+        <span class="n">y1</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">y2</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">fill_between</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">24</span><span class="p">],</span> <span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;silver&quot;</span><span class="p">)</span>
+
+
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">start_time</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">end_time</span><span class="p">]</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">label</span><span class="p">])</span>
+
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">25</span><span class="p">))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">([])</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">24</span><span class="p">])</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Time [h]&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">title</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s2">&quot;bold&quot;</span><span class="p">)</span>
+
+        <span class="n">leg_labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">label</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;dawn&quot;</span><span class="p">,</span> <span class="s2">&quot;dusk&quot;</span><span class="p">]</span> <span class="k">else</span> <span class="s2">&quot;home&quot;</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">]</span>
+        <span class="n">legend_handles</span> <span class="o">=</span> <span class="p">[</span><span class="n">mpatches</span><span class="o">.</span><span class="n">Patch</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">act</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="n">act</span><span class="p">)</span> <span class="k">for</span> <span class="n">act</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">leg_labels</span><span class="p">)]</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">handles</span><span class="o">=</span><span class="n">legend_handles</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">fig</span></div>
+
+
+<div class="viewcode-block" id="Schedule.activity_colors"><a class="viewcode-back" href="../activity.html#activity.Schedule.activity_colors">[docs]</a>    <span class="k">def</span> <span class="nf">activity_colors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">list_act</span><span class="p">:</span> <span class="n">List</span> <span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">palette</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span><span class="s2">&quot;colorblind&quot;</span><span class="p">)</span><span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Match each activity from list to a color from the input palette.</span>
+<span class="sd">        Useful to keep consistent colors across visualizations</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        ----------------------</span>
+<span class="sd">        - list_act: list of activity all_labels</span>
+<span class="sd">        - palette; name of matplotlib/searborn color palette.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">list_act</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">list_act</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s2">&quot;home&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;work&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;education&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;shopping&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;errands_services&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;business_trip&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;leisure&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;escort&quot;</span><span class="p">,</span>
+            <span class="p">]</span>
+
+        <span class="n">colors</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">a</span><span class="p">:</span> <span class="n">c</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">list_act</span><span class="p">,</span> <span class="n">sns</span><span class="o">.</span><span class="n">color_palette</span><span class="p">(</span><span class="n">palette</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_act</span><span class="p">))</span><span class="o">.</span><span class="n">as_hex</span><span class="p">())</span>
+            <span class="p">}</span>
+        <span class="n">colors</span><span class="p">[</span><span class="s2">&quot;home&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;gainsboro&quot;</span>
+
+        <span class="k">if</span> <span class="s2">&quot;home&quot;</span> <span class="ow">in</span> <span class="n">colors</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">colors</span><span class="p">[</span><span class="s2">&quot;dawn&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">colors</span><span class="p">[</span><span class="s2">&quot;home&quot;</span><span class="p">]</span>
+            <span class="n">colors</span><span class="p">[</span><span class="s2">&quot;dusk&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">colors</span><span class="p">[</span><span class="s2">&quot;home&quot;</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">colors</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">OASIS</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">code</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Janody Pougala.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,101 @@
+code package
+============
+
+Submodules
+----------
+
+code.activity module
+--------------------
+
+.. automodule:: code.activity
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+code.data\_utils module
+-----------------------
+
+.. automodule:: code.data_utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+code.error\_terms module
+------------------------
+
+.. automodule:: code.error_terms
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+code.estimation module
+----------------------
+
+.. automodule:: code.estimation
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+code.helper\_func module
+------------------------
+
+.. automodule:: code.helper_func
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+code.input\_data module
+-----------------------
+
+.. automodule:: code.input_data
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+code.metropolis\_hastings module
+--------------------------------
+
+.. automodule:: code.metropolis_hastings
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+code.operators module
+---------------------
+
+.. automodule:: code.operators
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+code.results module
+-------------------
+
+.. automodule:: code.results
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+code.settings module
+--------------------
+
+.. automodule:: code.settings
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+code.simulation module
+----------------------
+
+.. automodule:: code.simulation
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: code
+   :members:
+   :undoc-members:
+   :show-inheritance:

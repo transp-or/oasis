@@ -1,0 +1,755 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>operators &#8212; OASIS 1.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for operators</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">activity</span> <span class="kn">import</span> <span class="n">Activity</span><span class="p">,</span> <span class="n">Schedule</span><span class="p">,</span> <span class="n">ActivityFactory</span>
+
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Optional</span>
+
+
+<div class="viewcode-block" id="Operator"><a class="viewcode-back" href="../operators.html#operators.Operator">[docs]</a><span class="k">class</span> <span class="nc">Operator</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This class creates an &quot;operator&quot; unit to be used in the estimation process. Operators can easily be created with the OperatorFactory class.</span>
+
+<span class="sd">        Attributes:</span>
+<span class="sd">        -------------------</span>
+<span class="sd">        - optype: label of the operator</span>
+<span class="sd">        - proba: probability associated with the operator</span>
+<span class="sd">        - list_operators: the list of currently available operators.</span>
+
+<span class="sd">        Methods:</span>
+<span class="sd">        ------------------</span>
+<span class="sd">        - describe: prints information on the operator</span>
+<span class="sd">        - apply_change: applies a change to the given schedule.</span>
+<span class="sd">        - compute_change_proba: computes probability of change</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">optype</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">proba</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_optype</span> <span class="o">=</span> <span class="n">optype</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_proba</span> <span class="o">=</span> <span class="n">proba</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_list_operators</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Block&quot;</span><span class="p">,</span> <span class="s2">&quot;Assign&quot;</span><span class="p">,</span> <span class="s2">&quot;AddAnchor&quot;</span><span class="p">,</span> <span class="s2">&quot;InflateDeflate&quot;</span><span class="p">,</span> <span class="s2">&quot;Swap&quot;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="Operator.describe"><a class="viewcode-back" href="../operators.html#operators.Operator.describe">[docs]</a>    <span class="k">def</span> <span class="nf">describe</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Type: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_optype</span><span class="si">}</span><span class="s2"> </span><span class="se">\n</span><span class="s2"> Probability: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_proba</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">proba</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_proba</span>
+
+    <span class="nd">@proba</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">proba</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proba</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_proba</span> <span class="o">=</span> <span class="n">proba</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">optype</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_optype</span>
+
+    <span class="nd">@optype</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">optype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">optype</span><span class="p">:</span><span class="nb">str</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_optype</span> <span class="o">=</span> <span class="n">optype</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">list_operators</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_list_operators</span>
+
+    <span class="nd">@list_operators</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">list_operators</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">l_op</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_list_operators</span> <span class="o">=</span> <span class="n">l_op</span>
+
+
+<div class="viewcode-block" id="Operator.apply_change"><a class="viewcode-back" href="../operators.html#operators.Operator.apply_change">[docs]</a>    <span class="k">def</span> <span class="nf">apply_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule</span><span class="p">:</span> <span class="n">Schedule</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Schedule</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Applies change on given schedule.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">schedule</span></div>
+
+<div class="viewcode-block" id="Operator.compute_change_proba"><a class="viewcode-back" href="../operators.html#operators.Operator.compute_change_proba">[docs]</a>    <span class="k">def</span> <span class="nf">compute_change_proba</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Computes forward probability of change.&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div></div>
+
+
+<div class="viewcode-block" id="Block"><a class="viewcode-back" href="../operators.html#operators.Block">[docs]</a><span class="k">class</span> <span class="nc">Block</span><span class="p">(</span><span class="n">Operator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Block operator: changes the discretization of the schedule.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">    -------------</span>
+<span class="sd">    proba: probability of the operator</span>
+<span class="sd">    discret_list: list of possible discretizations in hours</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proba</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">-&gt;</span><span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;Block&quot;</span><span class="p">,</span> <span class="n">proba</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">discret_list</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="mi">5</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span>
+            <span class="mi">15</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span>
+            <span class="mi">30</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span>
+            <span class="mi">1</span><span class="p">,</span>
+        <span class="p">]</span>  <span class="c1"># expressed in hours (5 min, 15 min, 30 min, 1h)</span>
+
+<div class="viewcode-block" id="Block.apply_change"><a class="viewcode-back" href="../operators.html#operators.Block.apply_change">[docs]</a>    <span class="k">def</span> <span class="nf">apply_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule</span><span class="p">:</span> <span class="n">Schedule</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">Schedule</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Changes discretization of given schedule&quot;&quot;&quot;</span>
+
+        <span class="c1">#if np.log(np.random.rand()) &gt;= np.log(self.proba):</span>
+        <span class="c1">#    return schedule</span>
+
+        <span class="n">n</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">discret_list</span><span class="p">)</span>
+        <span class="n">schedule</span><span class="o">.</span><span class="n">discretization</span> <span class="o">=</span> <span class="n">n</span>
+
+        <span class="c1">#delta = schedule.discretization  # check discretization from input schedule</span>
+
+        <span class="c1">#if n != delta:  # Discretization changes</span>
+            <span class="c1">#act_in_sched = schedule.list_act</span>
+
+            <span class="c1">#for a in act_in_sched:</span>
+
+            <span class="c1">#    new_time = a.start_time * delta / n</span>
+            <span class="c1">#    a.start_time = new_time</span>
+
+            <span class="c1">#schedule.discretization = n</span>
+            <span class="c1">#schedule.list_act = act_in_sched</span>
+
+
+
+        <span class="k">return</span> <span class="n">schedule</span></div>
+
+
+<div class="viewcode-block" id="Block.compute_change_proba"><a class="viewcode-back" href="../operators.html#operators.Block.compute_change_proba">[docs]</a>    <span class="k">def</span> <span class="nf">compute_change_proba</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prev_sched</span><span class="p">:</span><span class="n">Schedule</span><span class="p">,</span> <span class="n">new_sched</span><span class="p">:</span><span class="n">Schedule</span><span class="p">,</span> <span class="n">n_discret</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">float</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Computes change probability.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        ----------</span>
+<span class="sd">        -prev_sched, new_sched: Schedule objects</span>
+<span class="sd">        -n_discret: number of possible discretizations</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">prev_sched</span><span class="o">.</span><span class="n">discretization</span><span class="o">==</span> <span class="n">new_sched</span><span class="o">.</span><span class="n">discretization</span><span class="p">:</span>
+            <span class="c1">#probability that discretization hasn&#39;t changed</span>
+            <span class="n">proba</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">n_discret</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1">#probability that discretization is different</span>
+            <span class="n">proba</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">n_discret</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">proba</span></div></div>
+
+<div class="viewcode-block" id="AddAnchor"><a class="viewcode-back" href="../operators.html#operators.AddAnchor">[docs]</a><span class="k">class</span> <span class="nc">AddAnchor</span><span class="p">(</span><span class="n">Operator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Anchor operator: changes the anchors of the schedule.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">    -------------</span>
+<span class="sd">    proba: probability of the operator</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proba</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;Anchor&quot;</span><span class="p">,</span> <span class="n">proba</span><span class="p">)</span>
+
+<div class="viewcode-block" id="AddAnchor.apply_change"><a class="viewcode-back" href="../operators.html#operators.AddAnchor.apply_change">[docs]</a>    <span class="k">def</span> <span class="nf">apply_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule</span><span class="p">:</span><span class="n">Schedule</span><span class="p">)</span><span class="o">-&gt;</span> <span class="n">Schedule</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Changes anchor nodes of given schedule.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1">#if np.log(np.random.rand()) &gt;= np.log(self.proba):</span>
+        <span class="c1">#    return schedule</span>
+
+        <span class="n">current_anchors</span> <span class="o">=</span> <span class="n">schedule</span><span class="o">.</span><span class="n">anchor_nodes</span>
+        <span class="n">new_anchor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">24</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">new_anchor</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">current_anchors</span><span class="p">:</span>
+            <span class="n">current_anchors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_anchor</span><span class="p">)</span>
+            <span class="n">schedule</span><span class="o">.</span><span class="n">anchor_nodes</span> <span class="o">=</span> <span class="n">current_anchors</span>
+
+        <span class="k">return</span> <span class="n">schedule</span></div>
+
+
+<div class="viewcode-block" id="AddAnchor.compute_change_proba"><a class="viewcode-back" href="../operators.html#operators.AddAnchor.compute_change_proba">[docs]</a>    <span class="k">def</span> <span class="nf">compute_change_proba</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prev_sched</span><span class="p">:</span><span class="n">Schedule</span><span class="p">,</span> <span class="n">new_sched</span><span class="p">:</span><span class="n">Schedule</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span><span class="nb">float</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Computes change probability.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        ----------</span>
+<span class="sd">        -prev_sched, new_sched: Schedule objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">previous_anchors</span> <span class="o">=</span> <span class="n">prev_sched</span><span class="o">.</span><span class="n">anchor_nodes</span>
+        <span class="n">new_anchors</span> <span class="o">=</span> <span class="n">new_sched</span><span class="o">.</span><span class="n">anchor_nodes</span>
+
+        <span class="k">if</span> <span class="n">previous_anchors</span> <span class="o">==</span> <span class="n">new_anchors</span><span class="p">:</span>
+            <span class="c1">#probability of drawing an anchor that is already present</span>
+            <span class="n">proba</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">previous_anchors</span><span class="p">)</span><span class="o">/</span><span class="mi">24</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1">#probability of drawing an anchor that is not in the list</span>
+            <span class="n">proba</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">previous_anchors</span><span class="p">)</span><span class="o">/</span><span class="mi">24</span>
+
+        <span class="k">return</span> <span class="n">proba</span></div></div>
+
+
+<div class="viewcode-block" id="Assign"><a class="viewcode-back" href="../operators.html#operators.Assign">[docs]</a><span class="k">class</span> <span class="nc">Assign</span><span class="p">(</span><span class="n">Operator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Assign operator: adds an activity in the schedule</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">    -------------</span>
+<span class="sd">    proba: probability of the operator</span>
+<span class="sd">    list_act: list of activities to choose from</span>
+<span class="sd">    p_act: choice probabilities for the activities</span>
+<span class="sd">    chosen_act_proba: probability of the chosen activity</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proba</span><span class="p">,</span> <span class="n">list_act</span><span class="p">:</span><span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">p_act</span><span class="p">:</span><span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;Assign&quot;</span><span class="p">,</span> <span class="n">proba</span><span class="p">)</span>
+
+
+        <span class="k">if</span> <span class="n">list_act</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span> <span class="o">=</span> <span class="n">list_act</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;home&quot;</span><span class="p">,</span><span class="s2">&quot;work&quot;</span><span class="p">,</span><span class="s2">&quot;education&quot;</span><span class="p">,</span><span class="s2">&quot;shopping&quot;</span><span class="p">,</span><span class="s2">&quot;errands_services&quot;</span><span class="p">,</span><span class="s2">&quot;business_trip&quot;</span><span class="p">,</span><span class="s2">&quot;leisure&quot;</span><span class="p">,</span><span class="s2">&quot;escort&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">p_act</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p_act</span> <span class="o">=</span> <span class="n">p_act</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p_act</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">)]</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">chosen_act_proba</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Assign.apply_change"><a class="viewcode-back" href="../operators.html#operators.Assign.apply_change">[docs]</a>    <span class="k">def</span> <span class="nf">apply_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule</span><span class="p">:</span><span class="n">Schedule</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">Schedule</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Assigns an activity to an existing block or anchor. The boundary conditions</span>
+<span class="sd">        (first and last block are at home) must be respected.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1">#if np.log(np.random.rand()) &gt;= np.log(self.proba):</span>
+        <span class="c1">#    return schedule</span>
+
+        <span class="n">act_in_sched</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">schedule</span><span class="o">.</span><span class="n">list_act</span> <span class="k">if</span> <span class="n">x</span><span class="p">]</span>
+
+        <span class="n">rnd_node</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">schedule</span><span class="o">.</span><span class="n">anchor_nodes</span><span class="p">)</span> <span class="c1">#choose a random anchor</span>
+        <span class="n">rnd_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">)),</span> <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p_act</span><span class="p">)</span>  <span class="c1">#select random activity in list</span>
+        <span class="n">rnd_act</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_act</span><span class="p">[</span><span class="n">rnd_idx</span><span class="p">]</span>
+
+        <span class="n">default_loc</span> <span class="o">=</span> <span class="n">schedule</span><span class="o">.</span><span class="n">get_home_location</span><span class="p">()</span>
+
+        <span class="n">new_act</span> <span class="o">=</span> <span class="n">Activity</span><span class="p">(</span><span class="n">rnd_act</span><span class="p">,</span> <span class="n">rnd_node</span><span class="p">,</span> <span class="n">duration</span> <span class="o">=</span> <span class="n">schedule</span><span class="o">.</span><span class="n">discretization</span><span class="p">,</span> <span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;driving&#39;</span><span class="p">,</span> <span class="n">location</span> <span class="o">=</span> <span class="n">default_loc</span><span class="p">)</span>
+
+        <span class="c1">#find where the new activity fits in the schedule</span>
+        <span class="n">all_starts</span> <span class="o">=</span> <span class="n">schedule</span><span class="o">.</span><span class="n">all_starts</span>
+
+        <span class="k">if</span> <span class="n">rnd_node</span> <span class="ow">in</span> <span class="n">all_starts</span><span class="p">:</span>
+            <span class="c1">#If another activity starts at the same time, shift by a minute to maintain the order of activities -</span>
+            <span class="c1"># if the new activity is longer than the older one  it will be deleted during the streamline operation</span>
+            <span class="c1">#otherwise, the timings will be adjusted accordingly</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">all_starts</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">rnd_node</span><span class="p">)</span>
+            <span class="n">up_act</span> <span class="o">=</span> <span class="n">act_in_sched</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+            <span class="n">up_act</span><span class="o">.</span><span class="n">start_time</span> <span class="o">=</span> <span class="n">act_in_sched</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">start_time</span> <span class="o">+</span> <span class="mi">1</span><span class="o">/</span><span class="mi">60</span>
+
+            <span class="n">act_in_sched</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">up_act</span>
+            <span class="n">new_act</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="n">up_act</span><span class="o">.</span><span class="n">location</span>
+
+        <span class="n">act_in_sched</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_act</span><span class="p">)</span>
+        <span class="n">act_in_sched</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">act_in_sched</span> <span class="k">if</span> <span class="n">x</span><span class="p">]</span> <span class="c1">#Remove NaNs</span>
+
+        <span class="n">act_in_sched</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">start_time</span><span class="p">)</span> <span class="c1">#sort activities by start time</span>
+        <span class="n">schedule</span><span class="o">.</span><span class="n">list_act</span> <span class="o">=</span> <span class="n">act_in_sched</span>
+
+        <span class="k">return</span> <span class="n">schedule</span></div>
+
+<div class="viewcode-block" id="Assign.compute_change_proba"><a class="viewcode-back" href="../operators.html#operators.Assign.compute_change_proba">[docs]</a>    <span class="k">def</span> <span class="nf">compute_change_proba</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prev_sched</span><span class="p">:</span><span class="n">Schedule</span><span class="p">,</span> <span class="n">new_sched</span><span class="p">:</span><span class="n">Schedule</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Computes change probability.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        ----------</span>
+<span class="sd">        -prev_sched, new_sched: Schedule objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1">#Probability of choosing an anchor, and that activity is different than the current one</span>
+
+        <span class="n">proba</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">prev_sched</span><span class="o">.</span><span class="n">anchor_nodes</span><span class="p">))</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">chosen_act_proba</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">proba</span></div></div>
+
+
+<div class="viewcode-block" id="InflateDeflate"><a class="viewcode-back" href="../operators.html#operators.InflateDeflate">[docs]</a><span class="k">class</span> <span class="nc">InflateDeflate</span><span class="p">(</span><span class="n">Operator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Inflate/deflate operator: increases or decreases duration of an activity</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">    -------------</span>
+<span class="sd">    proba: probability of the operator</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proba</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;InflateDeflate&quot;</span><span class="p">,</span> <span class="n">proba</span><span class="p">)</span>
+
+<div class="viewcode-block" id="InflateDeflate.apply_change"><a class="viewcode-back" href="../operators.html#operators.InflateDeflate.apply_change">[docs]</a>    <span class="k">def</span> <span class="nf">apply_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule</span><span class="p">:</span><span class="n">Schedule</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">Schedule</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Randomly increases duration of one activity, and decrease duration of another by same amount.&quot;&quot;&quot;</span>
+
+        <span class="c1">#if np.log(np.random.rand()) &gt;= np.log(self.proba):</span>
+        <span class="c1">#    return schedule</span>
+
+        <span class="n">act_in_sched</span> <span class="o">=</span> <span class="n">schedule</span><span class="o">.</span><span class="n">list_act</span>
+        <span class="n">nodes</span> <span class="o">=</span> <span class="n">schedule</span><span class="o">.</span><span class="n">anchor_nodes</span>
+        <span class="n">block_size</span> <span class="o">=</span> <span class="n">schedule</span><span class="o">.</span><span class="n">discretization</span>
+
+        <span class="n">rnd_act_inf</span> <span class="o">=</span> <span class="n">schedule</span><span class="o">.</span><span class="n">which_activity</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">nodes</span><span class="p">))</span>
+
+        <span class="n">direction</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># 0 right (or clockwise) 1 left (or counterclockwise)</span>
+
+        <span class="c1">#get position of activities in schedule</span>
+        <span class="n">idx_inf</span> <span class="o">=</span> <span class="n">act_in_sched</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">rnd_act_inf</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">direction</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">rnd_act_inf</span><span class="o">.</span><span class="n">end_time</span> <span class="o">=</span> <span class="n">rnd_act_inf</span><span class="o">.</span><span class="n">end_time</span> <span class="o">+</span> <span class="n">block_size</span> <span class="c1">#increase by one unit of time (from current discretization)</span>
+            <span class="n">act_in_sched</span><span class="p">[</span><span class="n">idx_inf</span><span class="p">]</span> <span class="o">=</span> <span class="n">rnd_act_inf</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">rnd_act_inf</span><span class="o">.</span><span class="n">end_time</span> <span class="o">=</span> <span class="n">rnd_act_inf</span><span class="o">.</span><span class="n">end_time</span> <span class="o">-</span> <span class="n">block_size</span> <span class="c1">#decrease by one unit of time (from current discretization)</span>
+            <span class="n">act_in_sched</span><span class="p">[</span><span class="n">idx_inf</span><span class="p">]</span> <span class="o">=</span> <span class="n">rnd_act_inf</span>
+
+        <span class="c1">#update list of activities in schedule</span>
+        <span class="n">schedule</span><span class="o">.</span><span class="n">list_act</span> <span class="o">=</span> <span class="n">act_in_sched</span>
+
+        <span class="k">return</span> <span class="n">schedule</span></div>
+
+<div class="viewcode-block" id="InflateDeflate.compute_change_proba"><a class="viewcode-back" href="../operators.html#operators.InflateDeflate.compute_change_proba">[docs]</a>    <span class="k">def</span> <span class="nf">compute_change_proba</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prev_sched</span><span class="p">:</span><span class="n">Schedule</span><span class="p">,</span> <span class="n">new_sched</span><span class="p">:</span><span class="n">Schedule</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Computes change probability.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        ----------</span>
+<span class="sd">        -prev_sched, new_sched: Schedule objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">proba</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">prev_sched</span><span class="o">.</span><span class="n">anchor_nodes</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">proba</span></div></div>
+
+
+<div class="viewcode-block" id="Swap"><a class="viewcode-back" href="../operators.html#operators.Swap">[docs]</a><span class="k">class</span> <span class="nc">Swap</span><span class="p">(</span><span class="n">Operator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Swap operator: swaps 2 adjacent blocks (start time and duration)</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">    -------------</span>
+<span class="sd">    proba: probability of the operator</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proba</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;Swap&quot;</span><span class="p">,</span> <span class="n">proba</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Swap.apply_change"><a class="viewcode-back" href="../operators.html#operators.Swap.apply_change">[docs]</a>    <span class="k">def</span> <span class="nf">apply_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule</span><span class="p">:</span><span class="n">Schedule</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">Schedule</span><span class="p">:</span>
+
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Swaps 2 adjacent blocks (start time and duration)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1">#if np.log(np.random.rand()) &gt;= np.log(self.proba):</span>
+        <span class="c1">#    return schedule</span>
+
+        <span class="n">act_in_sched</span> <span class="o">=</span> <span class="n">schedule</span><span class="o">.</span><span class="n">list_act</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">act_in_sched</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="c1">#nothing to swap</span>
+            <span class="k">return</span> <span class="n">schedule</span>
+
+        <span class="n">rnd_act</span> <span class="o">=</span> <span class="n">schedule</span><span class="o">.</span><span class="n">which_activity</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">schedule</span><span class="o">.</span><span class="n">anchor_nodes</span><span class="p">))</span>
+
+        <span class="n">swap</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># if swap = 0 swap with next act, else swap with previous one</span>
+
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">act_in_sched</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">rnd_act</span><span class="p">)</span>
+        <span class="n">first_act</span> <span class="o">=</span> <span class="n">act_in_sched</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="n">second_act</span> <span class="o">=</span> <span class="n">act_in_sched</span><span class="p">[</span><span class="n">idx</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">swap</span><span class="p">)]</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">first_act</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">second_act</span><span class="o">.</span><span class="n">label</span>
+            <span class="n">second_act</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">rnd_act</span><span class="o">.</span><span class="n">label</span>
+
+
+            <span class="n">act_in_sched</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">first_act</span>
+            <span class="n">act_in_sched</span><span class="p">[</span><span class="n">idx</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">swap</span><span class="p">)]</span> <span class="o">=</span> <span class="n">second_act</span>
+
+            <span class="c1">#update list of activities in schedule</span>
+            <span class="n">schedule</span><span class="o">.</span><span class="n">list_act</span> <span class="o">=</span> <span class="n">act_in_sched</span>
+
+
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error in swapping activities&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">schedule</span></div>
+
+
+
+<div class="viewcode-block" id="Swap.compute_change_proba"><a class="viewcode-back" href="../operators.html#operators.Swap.compute_change_proba">[docs]</a>    <span class="k">def</span> <span class="nf">compute_change_proba</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prev_sched</span><span class="p">:</span><span class="n">Schedule</span><span class="p">,</span> <span class="n">new_sched</span><span class="p">:</span><span class="n">Schedule</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Computes change probability.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        ----------</span>
+<span class="sd">        -prev_sched, new_sched: Schedule objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">proba</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">prev_sched</span><span class="o">.</span><span class="n">anchor_nodes</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">proba</span></div></div>
+
+
+
+<div class="viewcode-block" id="Mode"><a class="viewcode-back" href="../operators.html#operators.Mode">[docs]</a><span class="k">class</span> <span class="nc">Mode</span><span class="p">(</span><span class="n">Operator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Mode operator: changes mode of transportation associated with activity</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">    -------------</span>
+<span class="sd">    proba: probability of the operator</span>
+<span class="sd">    list_modes: list of possible modes to choose from</span>
+<span class="sd">    p_modes: associated probabilities</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proba</span><span class="p">,</span> <span class="n">list_modes</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">p_modes</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;Mode&quot;</span><span class="p">,</span> <span class="n">proba</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">list_modes</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">list_modes</span> <span class="o">=</span> <span class="n">list_modes</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">list_modes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;driving&quot;</span><span class="p">,</span><span class="s2">&quot;pt&quot;</span><span class="p">,</span><span class="s2">&quot;cycling&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">p_modes</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p_modes</span> <span class="o">=</span> <span class="n">p_modes</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p_modes</span><span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_modes</span><span class="p">)]</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_modes</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Mode.apply_change"><a class="viewcode-back" href="../operators.html#operators.Mode.apply_change">[docs]</a>    <span class="k">def</span> <span class="nf">apply_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule</span><span class="p">:</span><span class="n">Schedule</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">Schedule</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This operator randomly changes the travel mode of the selected activty</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+
+        <span class="c1">#if np.log(np.random.rand()) &gt;= np.log(self.proba):</span>
+        <span class="c1">#    return schedule</span>
+
+
+        <span class="n">act_in_sched</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">schedule</span><span class="o">.</span><span class="n">list_act</span> <span class="k">if</span> <span class="n">x</span><span class="p">]</span>
+        <span class="c1">#acts = schedule.get_list_act()</span>
+
+        <span class="n">rnd_act</span> <span class="o">=</span> <span class="n">schedule</span><span class="o">.</span><span class="n">which_activity</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">schedule</span><span class="o">.</span><span class="n">anchor_nodes</span><span class="p">))</span>
+        <span class="n">rnd_mode</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_modes</span><span class="p">,</span> <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p_modes</span><span class="p">)</span>  <span class="c1"># select random modes in list</span>
+
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1">#modify mode of current activity</span>
+            <span class="n">rnd_act</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">rnd_mode</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">act_in_sched</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">rnd_act</span><span class="p">)</span>
+            <span class="n">act_in_sched</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">rnd_act</span>
+
+            <span class="n">schedule</span><span class="o">.</span><span class="n">list_act</span> <span class="o">=</span> <span class="n">act_in_sched</span>
+
+
+
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error in changing the mode of activity&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">schedule</span><span class="p">,</span> <span class="n">rnd_act</span><span class="p">,</span> <span class="n">rnd_mode</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">schedule</span></div>
+
+<div class="viewcode-block" id="Mode.compute_change_proba"><a class="viewcode-back" href="../operators.html#operators.Mode.compute_change_proba">[docs]</a>    <span class="k">def</span> <span class="nf">compute_change_proba</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prev_sched</span><span class="p">:</span><span class="n">Schedule</span><span class="p">,</span> <span class="n">new_sched</span><span class="p">:</span><span class="n">Schedule</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Computes change probability.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        ----------</span>
+<span class="sd">        -prev_sched, new_sched: Schedule objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">prev_modes</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">mode</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">prev_sched</span><span class="o">.</span><span class="n">list_act</span><span class="p">]</span>
+        <span class="n">new_modes</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">mode</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">new_sched</span><span class="o">.</span><span class="n">list_act</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">prev_modes</span> <span class="o">==</span> <span class="n">new_modes</span><span class="p">:</span>
+            <span class="n">proba</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">prev_sched</span><span class="o">.</span><span class="n">anchor_nodes</span><span class="p">))</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_modes</span><span class="p">))</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">proba</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">prev_sched</span><span class="o">.</span><span class="n">anchor_nodes</span><span class="p">))</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_modes</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">proba</span></div></div>
+
+
+<div class="viewcode-block" id="Location"><a class="viewcode-back" href="../operators.html#operators.Location">[docs]</a><span class="k">class</span> <span class="nc">Location</span><span class="p">(</span><span class="n">Operator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Location operator: changes location associated with activity</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">    -------------</span>
+<span class="sd">    proba: probability of the operator</span>
+<span class="sd">    list_loc: list of possible locations to choose from</span>
+<span class="sd">    p_loc: associated probabilities</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proba</span><span class="p">,</span> <span class="n">list_loc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">p_loc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;Location&quot;</span><span class="p">,</span> <span class="n">proba</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">list_loc</span> <span class="o">=</span> <span class="n">list_loc</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p_loc</span> <span class="o">=</span> <span class="n">p_loc</span>
+
+<div class="viewcode-block" id="Location.apply_change"><a class="viewcode-back" href="../operators.html#operators.Location.apply_change">[docs]</a>    <span class="k">def</span> <span class="nf">apply_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule</span><span class="p">:</span> <span class="n">Schedule</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">Schedule</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This operator randomly changes the travel mode of the selected activty</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1">#if np.log(np.random.rand()) &gt;= np.log(self.proba):</span>
+        <span class="c1">#    return schedule</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_loc</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">list_loc</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">schedule</span><span class="o">.</span><span class="n">all_locations</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p_loc</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_loc</span><span class="p">)]</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_loc</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">p_loc</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p_loc</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_loc</span><span class="p">)]</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_loc</span><span class="p">)</span>
+
+
+        <span class="n">act_in_sched</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">schedule</span><span class="o">.</span><span class="n">list_act</span> <span class="k">if</span> <span class="n">x</span><span class="p">]</span>
+
+        <span class="n">rnd_act</span> <span class="o">=</span> <span class="n">schedule</span><span class="o">.</span><span class="n">which_activity</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">schedule</span><span class="o">.</span><span class="n">anchor_nodes</span><span class="p">))</span>
+        <span class="n">rnd_loc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_loc</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">p_loc</span><span class="p">)</span>  <span class="c1"># select random modes in list</span>
+
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1">#modify location of current activity</span>
+            <span class="n">rnd_act</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="n">rnd_loc</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">act_in_sched</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">rnd_act</span><span class="p">)</span>
+            <span class="n">act_in_sched</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">rnd_act</span>
+
+            <span class="n">schedule</span><span class="o">.</span><span class="n">list_act</span> <span class="o">=</span> <span class="n">act_in_sched</span>
+
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error in changing the location of activity&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">schedule</span><span class="p">,</span> <span class="n">rnd_act</span><span class="p">,</span> <span class="n">rnd_loc</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">schedule</span></div>
+
+<div class="viewcode-block" id="Location.compute_change_proba"><a class="viewcode-back" href="../operators.html#operators.Location.compute_change_proba">[docs]</a>    <span class="k">def</span> <span class="nf">compute_change_proba</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prev_sched</span><span class="p">,</span> <span class="n">new_sched</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">prev_loc</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">location</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">prev_sched</span><span class="o">.</span><span class="n">list_act</span><span class="p">]</span>
+        <span class="n">new_loc</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">location</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">new_sched</span><span class="o">.</span><span class="n">list_act</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">prev_loc</span> <span class="o">==</span> <span class="n">new_loc</span><span class="p">:</span>
+            <span class="n">proba</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">prev_sched</span><span class="o">.</span><span class="n">anchor_nodes</span><span class="p">))</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_loc</span><span class="p">))</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">proba</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">prev_sched</span><span class="o">.</span><span class="n">anchor_nodes</span><span class="p">))</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_loc</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">proba</span></div></div>
+
+
+<div class="viewcode-block" id="MetaOperator"><a class="viewcode-back" href="../operators.html#operators.MetaOperator">[docs]</a><span class="k">class</span> <span class="nc">MetaOperator</span><span class="p">(</span><span class="n">Operator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Meta operator: implements a combination of operators</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">    -------------</span>
+<span class="sd">    proba: probability of the operator</span>
+<span class="sd">    n_op: number of operators to combine</span>
+<span class="sd">    proba_operators: probabilities of each operato</span>
+<span class="sd">    operators: list of possible operators</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proba</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">n_op</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">proba_operators</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">operators</span><span class="p">:</span><span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;MetaOperator&quot;</span><span class="p">,</span> <span class="n">proba</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_op</span> <span class="o">=</span> <span class="n">n_op</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proba_operators</span> <span class="o">=</span> <span class="n">proba_operators</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">operators</span> <span class="o">=</span> <span class="n">operators</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">optype</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">meta_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta_type</span>
+
+    <span class="nd">@meta_type</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">meta_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">optype</span><span class="p">:</span><span class="nb">str</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_type</span> <span class="o">=</span> <span class="n">optype</span>
+
+<div class="viewcode-block" id="MetaOperator.set_operators"><a class="viewcode-back" href="../operators.html#operators.MetaOperator.set_operators">[docs]</a>    <span class="k">def</span> <span class="nf">set_operators</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Creates combination of operators&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_op</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_operators</span><span class="p">))</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_op</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid number of operators for combination&quot;</span><span class="p">)</span>
+
+        <span class="n">factory</span> <span class="o">=</span> <span class="n">OperatorFactory</span><span class="p">()</span>
+        <span class="n">idx_op</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list_operators</span><span class="p">)),</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_op</span><span class="p">)</span>
+        <span class="n">objects</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">idx_op</span><span class="p">:</span>
+            <span class="n">operator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_operators</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">operator</span><span class="p">,</span> <span class="n">proba</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">proba_operators</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+            <span class="n">objects</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">meta_type</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;_</span><span class="si">{</span><span class="n">operator</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">operators</span> <span class="o">=</span> <span class="n">objects</span></div>
+
+<div class="viewcode-block" id="MetaOperator.apply_change"><a class="viewcode-back" href="../operators.html#operators.MetaOperator.apply_change">[docs]</a>    <span class="k">def</span> <span class="nf">apply_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule</span><span class="p">:</span><span class="n">Schedule</span><span class="p">)</span><span class="o">-&gt;</span> <span class="n">Schedule</span><span class="p">:</span>
+
+        <span class="sd">&quot;&quot;&quot;Applies combined changes of operators&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">operators</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_operators</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">operator</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">operators</span><span class="p">:</span>
+            <span class="n">schedule</span> <span class="o">=</span> <span class="n">operator</span><span class="o">.</span><span class="n">apply_change</span><span class="p">(</span><span class="n">schedule</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">schedule</span></div>
+
+<div class="viewcode-block" id="MetaOperator.compute_change_proba"><a class="viewcode-back" href="../operators.html#operators.MetaOperator.compute_change_proba">[docs]</a>    <span class="k">def</span> <span class="nf">compute_change_proba</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prev_schedule</span><span class="p">:</span><span class="n">Schedule</span><span class="p">,</span> <span class="n">new_schedule</span><span class="p">:</span><span class="n">Schedule</span><span class="p">,</span> <span class="n">time</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">n_activities</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">n_discret</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;prev_sched&quot;</span><span class="p">:</span> <span class="n">prev_schedule</span><span class="p">,</span>
+        <span class="s2">&quot;new_sched&quot;</span><span class="p">:</span> <span class="n">new_schedule</span><span class="p">,</span>
+        <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="p">,</span>
+        <span class="s2">&quot;n_activities&quot;</span><span class="p">:</span> <span class="n">n_activities</span><span class="p">,</span>
+        <span class="s2">&quot;n_discret&quot;</span><span class="p">:</span> <span class="n">n_discret</span><span class="p">}</span>
+
+        <span class="n">proba</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="k">for</span> <span class="n">operator</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">operators</span><span class="p">:</span>
+            <span class="n">proba</span> <span class="o">*=</span> <span class="n">operator</span><span class="o">.</span><span class="n">compute_change_proba</span><span class="p">(</span><span class="o">**</span><span class="n">params</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">proba</span></div></div>
+
+
+<div class="viewcode-block" id="OperatorFactory"><a class="viewcode-back" href="../operators.html#operators.OperatorFactory">[docs]</a><span class="k">class</span> <span class="nc">OperatorFactory</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class creates an object from the Operator class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+<div class="viewcode-block" id="OperatorFactory.create"><a class="viewcode-back" href="../operators.html#operators.OperatorFactory.create">[docs]</a>    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">optype</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Operator</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Creates an object from the Operator class</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        -----------</span>
+<span class="sd">        -optype: label of operator</span>
+<span class="sd">        -kwargs: other keyword arguments that will be passed to the constructor of the Operator class.</span>
+
+<span class="sd">        Return</span>
+<span class="sd">        ----------</span>
+<span class="sd">        Operator</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">object</span> <span class="o">=</span> <span class="nb">globals</span><span class="p">()[</span><span class="n">optype</span><span class="p">](</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">object</span></div>
+
+<div class="viewcode-block" id="OperatorFactory.draw"><a class="viewcode-back" href="../operators.html#operators.OperatorFactory.draw">[docs]</a>    <span class="k">def</span> <span class="nf">draw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">list_operators</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">p_operators</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">]</span> <span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Operator</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Randomly creates an object from the Operator class, given a list of possible operators and probabilities.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        -----------</span>
+<span class="sd">        -list_operators: list of possible operators to choose from</span>
+<span class="sd">        -p_operators: list of operator probabilities (must be the same length as list_operators and sum up to 1)</span>
+<span class="sd">        -kwargs: other keyword arguments that will be passed to the constructor of the Operator class.</span>
+
+<span class="sd">        Return</span>
+<span class="sd">        ----------</span>
+<span class="sd">        Operator</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">p_operators</span><span class="p">:</span>
+            <span class="n">p_operators</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_operators</span><span class="p">)</span><span class="o">*</span><span class="p">[</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">list_operators</span><span class="p">)]</span>
+
+        <span class="n">rnd_op</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">list_operators</span><span class="p">)),</span> <span class="n">p</span><span class="o">=</span><span class="n">p_operators</span><span class="p">)</span>
+        <span class="n">n_op</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">list_operators</span><span class="p">[</span><span class="n">rnd_op</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;MetaOperator&#39;</span><span class="p">:</span>
+            <span class="c1">#Choose how many operators to combine</span>
+            <span class="n">n_op</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_operators</span><span class="p">))</span>
+
+
+        <span class="n">operator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">list_operators</span><span class="p">[</span><span class="n">rnd_op</span><span class="p">],</span> <span class="n">proba</span> <span class="o">=</span> <span class="n">p_operators</span><span class="p">[</span><span class="n">rnd_op</span><span class="p">],</span> <span class="n">n_op</span> <span class="o">=</span> <span class="n">n_op</span><span class="p">,</span> <span class="n">proba_operators</span> <span class="o">=</span> <span class="n">p_operators</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">operator</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">OASIS</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">code</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Janody Pougala.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
