@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "oasisis"
+name = "oasisabm"
 authors = [
 	{name = "Janody Pougala",email = "janody.pougala@epfl.ch"},
 ]
@@ -43,7 +43,7 @@ dev = [
 ]
 
 [tool.setuptools_scm]
-write_to = "oasisis/_version.py"
+write_to = "oasisabm/_version.py"
 
 [tool.setuptools]
-packages = ["oasisis"]
+packages = ["oasisabm"]
