@@ -33,7 +33,8 @@ dependencies = [
 	"python-dateutil",
 	"python-json-logger",
 	"scipy",
-	"seaborn"
+	"seaborn",
+	"geopy"
 ]
 dynamic = ["version"]
 
