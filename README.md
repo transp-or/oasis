@@ -1,6 +1,6 @@
 # OASIS v1.0.0
 
-[![DOI](https://zenodo.org/badge/685457042.svg)](https://zenodo.org/badge/latestdoi/685457042)
+[![DOI](https://zenodo.org/badge/685457042.svg)](https://zenodo.org/badge/latestdoi/685457042) [![PyPI version](https://badge.fury.io/py/oasisabm.svg)](https://badge.fury.io/py/oasisabm) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Description
 
@@ -9,6 +9,10 @@ This is a stable version of the OASIS activity-based framework. This repository 
 For more details, you can find the technical reports in the **Literature** folder, and the full documentation [here](https://oasis-abm.readthedocs.io/en/latest/).
 
 ## Installation guide   
+
+OASIS can be installed with the following command: 
+
+``pip install oasisabm`` 
 
 We recommend creating a new environment using the provided requirements file to install the correct packages. 
 **NB: You need a valid CPLEX user license to use the solver, which can be obtained [here](https://www.ibm.com/academic/topic/data-science).**
