@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oasisis"
+authors = [
+	{name = "Janody Pougala",email = "janody.pougala@epfl.ch"},
+]
+description = "This is a stable version of the OASIS activity-based framework. This repository includes the simulation code, based on the Python API of the CPLEX solver."
+readme = "README.md"
+keywords = ["python", "disdrometer"]
+classifiers = [
+	"Development Status :: 1 - Planning",
+	"Intended Audience :: Developers",
+	"Programming Language :: Python :: 3",
+	"Operating System :: Unix",
+	"Operating System :: MacOS :: MacOS X",
+	"Operating System :: Microsoft :: Windows",
+]
+requires-python = ">=3.8"
+dependencies = [
+	"click",
+	"cplex",
+	"docplex",
+	"joblib",
+	"json5",
+	"jsonschema",
+	"matplotlib",
+	"numpy",
+	"ortools",
+	"pandas",
+	"python-dateutil",
+	"python-json-logger",
+	"scipy",
+	"seaborn"
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = [
+]
+
+[tool.setuptools_scm]
+write_to = "oasisis/_version.py"
+
+[tool.setuptools]
+packages = ["oasisis"]
